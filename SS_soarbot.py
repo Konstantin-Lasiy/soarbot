@@ -36,14 +36,14 @@ def get_station_data(lookback_minutes = 30):
 
 def check_wind(station_data):
     last_3_wind_speeds = station_data.tail(3)[['wind_gust_set_1']]
-    wind_bottom_value = 5
+    wind_bottom_value = 11
     wind_top_value = 16
     wind_speed_is_acceptable = ((last_3_wind_speeds > wind_bottom_value) &
                                 (last_3_wind_speeds < wind_top_value)).all().iloc[0]
     
     last_3_wind_directions = station_data.tail(3)[['wind_direction_set_1']]
-    bottom_wind_dir_value = 100
-    top_win_dir_value = 260
+    bottom_wind_dir_value = 130
+    top_win_dir_value = 180
     wind_dir_is_acceptable = ((last_3_wind_directions > bottom_wind_dir_value) &
                               (last_3_wind_directions < top_win_dir_value)).all().iloc[0]
     
@@ -59,7 +59,7 @@ def check_rain(station_data):
 
 def check_for_strong_gusts(station_data):
     last_3_gust_readings = station_data.tail(3)[['wind_gust_set_1']] - station_data.tail(3)[['wind_speed_set_1']]
-    gust_limit = 5
+    gust_limit = 4
     gust_over_limit = (last_3_gust_readings > gust_limit).any().iloc[0]
     return gust_over_limit
 
