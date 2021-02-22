@@ -8,7 +8,10 @@ import logging
 import astral
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
-
+import astral
+import datetime
+from astral.sun import sun
+from astral import LocationInfo
 
 
 def get_station_data(lookback_minutes = 30):
@@ -60,11 +63,24 @@ def check_for_strong_gusts(station_data):
     gust_over_limit = (last_3_gust_readings > gust_limit).any().iloc[0]
     return gust_over_limit
 
+
+def check_daytime():
+    current_time = datetime.datetime.now()
+    loc = LocationInfo("Salt Lake City", region='UT, USA', timezone='US/Mountain', latitude=40.5247,
+                       longitude=-111.8638)
+    s = sun(loc.observer, date=current_time, tzinfo='US/Mountain')
+    if s['sunrise'] - datetime.timedelta(minutes=10) <current_time < s['sunrise'] - datetime.timedelta(minutes=30):
+        return True
+    else:
+        return False
+
+
 def check_all_conditions(station_data):
     wind_is_acceptable = check_wind(station_data)
     is_raining = check_rain(station_data)
     strong_gusts = check_for_strong_gusts(station_data)
-    all_conditions_are_right = wind_is_acceptable and not is_raining and not strong_gusts
+    daytime = check_daytime()
+    all_conditions_are_right = wind_is_acceptable and not is_raining and not strong_gusts and daytime
     if all_conditions_are_right:
         return True
     else:
