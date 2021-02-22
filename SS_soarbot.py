@@ -124,14 +124,16 @@ def latest_readings(bot, job):
                              text=message)
 
 def format_message(station_data):
-    message = "\n" #""TIME  |  WIND SPEEDgGUST | WIND DIRECTION \n"
+    message = "<pre>" #""TIME  |  WIND SPEEDgGUST | WIND DIRECTION \n"
     for index, row in station_data.tail(6).iloc[::-1].iterrows():
-        message += ('{:%H:%M} - {}{:1.1f}g{:1.1f} - {} \n'.format(
+        message += ('{:%H:%M} | {}{:1.1f}g{:1.1f} | {} \n'.format(
             row['date_time'], " " * 0,
             row['wind_speed_set_1'],
             row['wind_gust_set_1'],
             row['wind_cardinal_direction_set_1d']))
+    message += '</pre>'
     return message
+
 
 def callback_minute(context: CallbackContext):
     global last_message_time
@@ -142,7 +144,8 @@ def callback_minute(context: CallbackContext):
         if datetime.datetime.now() - last_message_time > datetime.timedelta(hours=4):
             message = format_message(station_data)
             context.bot.send_message(chat_id='-1001370053492',
-                                     text=message)
+                                     text=message,
+                                     parse_mode = 'HTML')
             last_message_time = datetime.datetime.now()
 
 
