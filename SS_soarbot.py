@@ -83,11 +83,11 @@ def check_all_conditions(station_data):
     strong_gusts = check_for_strong_gusts(station_data)
     daytime = check_daytime()
     all_conditions_are_right = wind_is_acceptable and not is_raining and not strong_gusts and daytime
-    print('wind: {wind}'.format(wind=wind_is_acceptable))
-    print('rain: {rain}'.format(rain=is_raining))
-    print('gusts: {gusts}'.format(gusts=strong_gusts))
-    print('daytime: {daytime}'.format(daytime=check_daytime()))
-    print('all_conditions: {all_conditions}'.format(all_conditions=all_conditions_are_right))
+    # print('wind: {wind}'.format(wind=wind_is_acceptable))
+    # print('rain: {rain}'.format(rain=is_raining))
+    # print('gusts: {gusts}'.format(gusts=strong_gusts))
+    # print('daytime: {daytime}'.format(daytime=check_daytime()))
+    # print('all_conditions: {all_conditions}'.format(all_conditions=all_conditions_are_right))
     if all_conditions_are_right:
         return True
     else:
