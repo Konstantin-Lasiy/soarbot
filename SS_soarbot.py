@@ -35,7 +35,7 @@ def get_station_data(lookback_minutes = 30):
 
 
 def check_wind(station_data):
-    last_3_wind_speeds = station_data.tail(3)[['wind_gust_set_1']]
+    last_3_wind_speeds = station_data.tail(3)[['wind_speed_set_1']]
     wind_bottom_value = 11
     wind_top_value = 16
     wind_speed_is_acceptable = ((last_3_wind_speeds > wind_bottom_value) &
@@ -46,7 +46,9 @@ def check_wind(station_data):
     top_win_dir_value = 180
     wind_dir_is_acceptable = ((last_3_wind_directions > bottom_wind_dir_value) &
                               (last_3_wind_directions < top_win_dir_value)).all().iloc[0]
-    
+
+    print('wind speed: {wind_speed_is_acceptable}'.format(wind_speed_is_acceptable=wind_speed_is_acceptable))
+    print('wind direction: {wind_dir_is_acceptable}'.format(wind_dir_is_acceptable=wind_dir_is_acceptable))
     wind_is_acceptable = wind_speed_is_acceptable and wind_dir_is_acceptable
     return wind_is_acceptable
 
@@ -83,11 +85,12 @@ def check_all_conditions(station_data):
     strong_gusts = check_for_strong_gusts(station_data)
     daytime = check_daytime()
     all_conditions_are_right = wind_is_acceptable and not is_raining and not strong_gusts and daytime
-    # print('wind: {wind}'.format(wind=wind_is_acceptable))
-    # print('rain: {rain}'.format(rain=is_raining))
-    # print('gusts: {gusts}'.format(gusts=strong_gusts))
-    # print('daytime: {daytime}'.format(daytime=check_daytime()))
-    # print('all_conditions: {all_conditions}'.format(all_conditions=all_conditions_are_right))
+    # TODO: Implement better logging of conditions.
+    print('wind: {wind}'.format(wind=wind_is_acceptable))
+    print('rain: {rain}'.format(rain=is_raining))
+    print('gusts: {gusts}'.format(gusts=strong_gusts))
+    print('daytime: {daytime}'.format(daytime=check_daytime()))
+    print('all_conditions: {all_conditions}'.format(all_conditions=all_conditions_are_right))
     if all_conditions_are_right:
         return True
     else:
