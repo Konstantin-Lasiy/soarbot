@@ -126,7 +126,7 @@ def latest_readings(bot, job):
 def format_message(station_data):
     message = "<pre>" #""TIME  |  WIND SPEEDgGUST | WIND DIRECTION \n"
     for index, row in station_data.tail(6).iloc[::-1].iterrows():
-        message += ('{:%H:%M} | {}{:1.1f}g{:1.1f} | {} \n'.format(
+        message += ('{:%H:%M} | {}{:1.0f}g{:1.0f} | {} \n'.format(
             row['date_time'], " " * 0,
             row['wind_speed_set_1'],
             row['wind_gust_set_1'],
