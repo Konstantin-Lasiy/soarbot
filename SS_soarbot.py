@@ -69,7 +69,9 @@ def check_daytime():
     loc = LocationInfo("Salt Lake City", region='UT, USA', timezone='US/Mountain', latitude=40.5247,
                        longitude=-111.8638)
     s = sun(loc.observer, date=current_time, tzinfo='US/Mountain')
-    if s['sunrise'] - datetime.timedelta(minutes=10) <current_time < s['sunrise'] - datetime.timedelta(minutes=30):
+    approx_sunrise = (s['sunrise'] - datetime.timedelta(minutes=10)).replace(tzinfo=None)
+    approx_sunset = (s['sunset'] - datetime.timedelta(minutes=30)).replace(tzinfo=None)
+    if approx_sunrise < current_time < approx_sunset:
         return True
     else:
         return False
@@ -81,6 +83,11 @@ def check_all_conditions(station_data):
     strong_gusts = check_for_strong_gusts(station_data)
     daytime = check_daytime()
     all_conditions_are_right = wind_is_acceptable and not is_raining and not strong_gusts and daytime
+    print('wind: {wind}'.format(wind=wind_is_acceptable))
+    print('rain: {rain}'.format(rain=is_raining))
+    print('gusts: {gusts}'.format(gusts=strong_gusts))
+    print('daytime: {daytime}'.format(daytime=check_daytime()))
+    print('all_conditions: {all_conditions}'.format(all_conditions=all_conditions_are_right))
     if all_conditions_are_right:
         return True
     else:
