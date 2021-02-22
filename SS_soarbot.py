@@ -48,7 +48,7 @@ def check_wind(station_data):
                               (last_3_wind_directions < top_win_dir_value)).all().iloc[0]
     
     wind_is_acceptable = wind_speed_is_acceptable and wind_dir_is_acceptable
-    return wind_is_acceptable, last_3_wind_directions, last_3_wind_speeds
+    return wind_is_acceptable
 
 
 def check_rain(station_data):
@@ -93,7 +93,7 @@ def check_all_conditions(station_data):
     else:
         return False
 
-def send_message():
+def play_sound():
     command = "omxplayer 'Alarm Alert Effect-SoundBible.com-462520910.mp3' -g 100" 
     os.system(command)
 
@@ -121,8 +121,8 @@ def latest_readings(bot, job):
                              text=message)
 
 def format_message(station_data):
-    message = "TIME  |  WIND SPEEDgGUST | WIND DIRECTION \n"
-    for index, row in station_data.tail(6).iterrows():
+    message = "\n" #""TIME  |  WIND SPEEDgGUST | WIND DIRECTION \n"
+    for index, row in station_data.tail(6).iloc[::-1].iterrows():
         message += ('{:%H:%M} - {}{:1.1f}g{:1.1f} - {} \n'.format(
             row['date_time'], " " * 0,
             row['wind_speed_set_1'],
@@ -131,21 +131,25 @@ def format_message(station_data):
     return message
 
 def callback_minute(context: CallbackContext):
+    global last_message_time
     lookback_minutes = 30
     station_data = get_station_data(lookback_minutes)
     all_parameters_met = check_all_conditions(station_data)
     if all_parameters_met:
-        message = format_message(station_data)
-        context.bot.send_message(chat_id='-1001370053492',
-                                 text=message)
+        if datetime.datetime.now() - last_message_time > datetime.timedelta(hours=4):
+            message = format_message(station_data)
+            context.bot.send_message(chat_id='-1001370053492',
+                                     text=message)
+            last_message_time = datetime.datetime.now()
 
 
 
 def main():
+    global last_message_time
     # TELEGRAM stuff
     updater = Updater(token=config.telegram_token, use_context=True)
     j = updater.job_queue
-
+    last_message_time = datetime.datetime.now() - datetime.timedelta(hours=5)
     job_minute = j.run_repeating(callback_minute, interval=60, first=2)
 
     updater.start_polling()
