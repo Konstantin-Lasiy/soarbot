@@ -32,8 +32,8 @@ import logging
 import epdconfig
 
 # Display resolution
-EPD_WIDTH       = 640
-EPD_HEIGHT      = 384
+EPD_WIDTH       = 800
+EPD_HEIGHT      = 480
 
 class EPD:
     def __init__(self):

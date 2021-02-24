@@ -144,6 +144,7 @@ def draw_station_data(draw, station_data, left, top, right, bottom):
     draw.text((0, 0), text, font=font18)
 
 def update_image(station_data):
+    logging.info('In update_image')
     epd = epd7in5.EPD()
     epd.init()
     epd.Clear()
