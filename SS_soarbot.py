@@ -146,8 +146,11 @@ def draw_station_data(draw, station_data, left, top, right, bottom):
 def update_image(station_data):
     logging.info('In update_image')
     epd = epd7in5.EPD()
+    logging.info('starting init')
     epd.init()
+    logging.info('starting Clear')
     epd.Clear()
+    logging.info('done with Clear')
     screen_w = epd.width
     screen_h = epd.height
     image = Image.new('1', (screen_h, screen_w), 255)
