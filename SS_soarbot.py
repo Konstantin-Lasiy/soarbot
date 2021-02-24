@@ -196,7 +196,7 @@ def main():
     logging.info('starting init')
     epd.init()
     last_message_time = datetime.datetime.now() - datetime.timedelta(hours=5)
-    job_minute = j.run_repeating(callback_minute, interval=60, first=2, epd=epd)
+    job_minute = j.run_repeating(callback_minute, interval=60, first=2, job_kwargs={'epd': epd})
 
     updater.start_polling()
     updater.idle()
