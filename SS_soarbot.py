@@ -137,14 +137,14 @@ def format_message(station_data, rows=6, html=True):
     if html:
         message += '</pre>'
     else:
-        message += '''       __,-,        ____
+        message += '''       __,-, 
     ,-'  \  \ 
   ,'   \  \  \ 
  /  \   \ _,==;
 / \  \.,="|  |
 \  \ /'   | |
  \  /'--,_o_|
-  `<'_,---|#,  pb
+  `<'_,---|#, 
 '''
     return message
 
@@ -153,11 +153,8 @@ def draw_station_data(draw, station_data, left, top, right, bottom):
     font18 = ImageFont.truetype('./fonts/mononoki-Regular.ttf', 18)
     draw.text((0, 0), text, font=font18)
 
-def update_image(station_data):
+def update_image(station_data, epd):
     logging.info('In update_image')
-    epd = epd7in5_V2.EPD()
-    logging.info('starting init')
-    epd.init()
     logging.info('starting Clear')
     epd.Clear()
     logging.info('done with Clear')
@@ -174,12 +171,12 @@ def update_image(station_data):
     epd.sleep()
 
 
-def callback_minute(context: CallbackContext):
+def callback_minute(context: CallbackContext, epd):
     global last_message_time
     lookback_minutes = 120
     station_data = get_station_data(lookback_minutes)
     all_parameters_met = check_all_conditions(station_data)
-    update_image(station_data)
+    update_image(station_data, epd)
     if all_parameters_met:
         if datetime.datetime.now() - last_message_time > datetime.timedelta(hours=4):
             message = format_message(station_data)
@@ -195,8 +192,11 @@ def main():
     # TELEGRAM stuff
     updater = Updater(token=config.telegram_token, use_context=True)
     j = updater.job_queue
+    epd = epd7in5_V2.EPD()
+    logging.info('starting init')
+    epd.init()
     last_message_time = datetime.datetime.now() - datetime.timedelta(hours=5)
-    job_minute = j.run_repeating(callback_minute, interval=60, first=2)
+    job_minute = j.run_repeating(callback_minute, interval=60, first=2, epd=epd)
 
     updater.start_polling()
     updater.idle()
