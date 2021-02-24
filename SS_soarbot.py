@@ -136,6 +136,16 @@ def format_message(station_data, rows=6, html=True):
             row['wind_cardinal_direction_set_1d']))
     if html:
         message += '</pre>'
+    else:
+        message += '''       __,-,        ____
+    ,-'  \  \ 
+  ,'   \  \  \ 
+ /  \   \ _,==;
+/ \  \.,="|  |
+\  \ /'   | |
+ \  /'--,_o_|
+  `<'_,---|#,  pb
+'''
     return message
 
 def draw_station_data(draw, station_data, left, top, right, bottom):
