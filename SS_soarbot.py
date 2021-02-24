@@ -12,7 +12,7 @@ import datetime
 from astral.sun import sun
 from astral import LocationInfo
 from PIL import Image,ImageDraw,ImageFont
-import epd7in5
+import epd7in5_V2
 
 def get_station_data(lookback_minutes = 30):
     request_string = 'https://api.synopticdata.com/v2/stations/timeseries?\
@@ -145,7 +145,7 @@ def draw_station_data(draw, station_data, left, top, right, bottom):
 
 def update_image(station_data):
     logging.info('In update_image')
-    epd = epd7in5.EPD()
+    epd = epd7in5_V2.EPD()
     logging.info('starting init')
     epd.init()
     logging.info('starting Clear')
