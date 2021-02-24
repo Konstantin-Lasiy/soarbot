@@ -8,11 +8,11 @@ import logging
 import astral
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
-import astral
 import datetime
 from astral.sun import sun
 from astral import LocationInfo
-
+from PIL import Image,ImageDraw,ImageFont
+import epd7in5
 
 def get_station_data(lookback_minutes = 30):
     request_string = 'https://api.synopticdata.com/v2/stations/timeseries?\
@@ -123,29 +123,50 @@ def latest_readings(bot, job):
     bot.send_message(chat_id='-1001370053492',
                              text=message)
 
-def format_message(station_data):
-    message = "<pre>" #""TIME  |  WIND SPEEDgGUST | WIND DIRECTION \n"
-    for index, row in station_data.tail(6).iloc[::-1].iterrows():
+def format_message(station_data, rows=6, html=True):
+    if html:
+        message = "<pre>" #""TIME  |  WIND SPEEDgGUST | WIND DIRECTION \n"
+    else:
+        message = ""
+    for index, row in station_data.tail(rows).iloc[::-1].iterrows():
         message += ('{:%H:%M} | {}{:1.0f}g{:1.0f} | {} \n'.format(
             row['date_time'], " " * 0,
             row['wind_speed_set_1'],
             row['wind_gust_set_1'],
             row['wind_cardinal_direction_set_1d']))
-    message += '</pre>'
+    if html:
+        message += '</pre>'
     return message
 
+def draw_station_data(draw, station_data, left, top, right, bottom):
+    text = format_message(station_data, rows=20)
+    font18 = ImageFont.truetype('./fonts/mononoki-Regular.ttf', 18)
+    draw.text(draw, text, font18, left, top, right, bottom, 6, -10)
+
+def update_image(station_data):
+    epd = epd7in5.EPD()
+    epd.init()
+    epd.Clear()
+    screen_w = epd.width
+    screen_h = epd.height
+    image = Image.new('1', (screen_w, screen_h), 255)
+
+    logging.info('Drawing calendar')
+    draw = ImageDraw.Draw(image)
+    draw_station_data(draw, station_data, 0+10, screen_h-10, screen_w-10, 0+10)
 
 def callback_minute(context: CallbackContext):
     global last_message_time
     lookback_minutes = 30
     station_data = get_station_data(lookback_minutes)
     all_parameters_met = check_all_conditions(station_data)
+    update_image(station_data)
     if all_parameters_met:
         if datetime.datetime.now() - last_message_time > datetime.timedelta(hours=4):
             message = format_message(station_data)
             context.bot.send_message(chat_id='-1001370053492',
                                      text=message,
-                                     parse_mode = 'HTML')
+                                     parse_mode='HTML')
             last_message_time = datetime.datetime.now()
 
 
@@ -160,29 +181,7 @@ def main():
 
     updater.start_polling()
     updater.idle()
-    #
-    # lookback_minutes = 30
-    # station_data = get_station_data(lookback_minutes)
-    # wind_is_acceptable = check_wind(station_data)
-    # print('wind: ', "Wind is great!" if wind_is_acceptable else "Wind is bad.")
-    # print("TIME  | WIND SPEED | WIND DIRECTION")
-    # for index, row in station_data.tail(3).iterrows():
-    #     print('{:%H:%M} | {}{:5.1f} {} |  {}'.format(
-    #             row['date_time'], " "*2,
-    #             row['wind_speed_set_1'], " "*2,
-    #             str(row['wind_direction_set_1']) + ' - ' +
-    #             row['wind_cardinal_direction_set_1d']))
-    #
-    # is_raining = check_rain(station_data)
-    # print('rain: ', "It's raining" if is_raining else "No rain in the last {min} minutes".format(min=lookback_minutes))
-    #
-    # strong_gusts = check_for_strong_gusts(station_data)
-    # print('gusts:', "Gusts are too strong" if strong_gusts else "Gusts are OK")
-    #
-    # all_conditions_are_right = wind_is_acceptable and not is_raining and not strong_gusts
-    # if all_conditions_are_right:
-    #     send_email(station_data)
-    #     send_message()
+
         
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
