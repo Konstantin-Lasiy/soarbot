@@ -176,7 +176,7 @@ def callback_minute(context: CallbackContext, epd):
     lookback_minutes = 120
     station_data = get_station_data(lookback_minutes)
     all_parameters_met = check_all_conditions(station_data)
-    update_image(station_data, epd)
+    #update_image(station_data, epd)
     if all_parameters_met:
         if datetime.datetime.now() - last_message_time > datetime.timedelta(hours=4):
             message = format_message(station_data)
@@ -196,7 +196,7 @@ def main():
     logging.info('starting init')
     epd.init()
     last_message_time = datetime.datetime.now() - datetime.timedelta(hours=5)
-    job_minute = j.run_repeating(callback_minute, interval=60, first=2, job_kwargs={'epd': epd})
+    job_minute = j.run_repeating(callback_minute, interval=60, first=2)
 
     updater.start_polling()
     updater.idle()
