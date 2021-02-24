@@ -139,9 +139,9 @@ def format_message(station_data, rows=6, html=True):
     return message
 
 def draw_station_data(draw, station_data, left, top, right, bottom):
-    text = format_message(station_data, rows=20)
+    text = format_message(station_data, rows=20, html=False)
     font18 = ImageFont.truetype('./fonts/mononoki-Regular.ttf', 18)
-    draw.text(draw, text, font18, left, top, right, bottom, 6, -10)
+    draw.text((0, 0), text, font=font18)
 
 def update_image(station_data):
     epd = epd7in5.EPD()
@@ -149,15 +149,20 @@ def update_image(station_data):
     epd.Clear()
     screen_w = epd.width
     screen_h = epd.height
-    image = Image.new('1', (screen_w, screen_h), 255)
+    image = Image.new('1', (screen_h, screen_w), 255)
 
     logging.info('Drawing calendar')
     draw = ImageDraw.Draw(image)
     draw_station_data(draw, station_data, 0+10, screen_h-10, screen_w-10, 0+10)
 
+    epd.display(epd.getbuffer(image))
+    logging.info('Go to sleep')
+    epd.sleep()
+
+
 def callback_minute(context: CallbackContext):
     global last_message_time
-    lookback_minutes = 30
+    lookback_minutes = 120
     station_data = get_station_data(lookback_minutes)
     all_parameters_met = check_all_conditions(station_data)
     update_image(station_data)
