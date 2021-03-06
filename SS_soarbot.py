@@ -177,16 +177,16 @@ def update_image(station_data):
 def callback_minute(context: CallbackContext):
     global last_message_time
     lookback_minutes = 120
-    station_data = get_station_data(lookback_minutes)
-    all_parameters_met = check_all_conditions(station_data)
-    #update_image(station_data)
-    if all_parameters_met:
-        if datetime.datetime.now() - last_message_time > datetime.timedelta(hours=4):
-            message = format_message(station_data)
-            context.bot.send_message(chat_id='-1001370053492',
-                                     text=message,
-                                     parse_mode='HTML')
-            last_message_time = datetime.datetime.now()
+    if datetime.datetime.now() - last_message_time > datetime.timedelta(hours=4):
+        station_data = get_station_data(lookback_minutes)
+        all_parameters_met = check_all_conditions(station_data)
+        #update_image(station_data)
+        if all_parameters_met:
+                message = format_message(station_data)
+                context.bot.send_message(chat_id='-1001370053492',
+                                         text=message,
+                                         parse_mode='HTML')
+                last_message_time = datetime.datetime.now()
 
 
 
