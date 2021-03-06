@@ -197,7 +197,7 @@ def main():
     j = updater.job_queue
 
     last_message_time = datetime.datetime.now() - datetime.timedelta(hours=5)
-    job_minute = j.run_repeating(callback_minute, interval=60, first=2)
+    job_minute = j.run_repeating(callback_minute, interval=60*5, first=2)
 
     updater.start_polling()
     updater.idle()
