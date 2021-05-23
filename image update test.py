@@ -21,22 +21,9 @@ def draw_station_data(draw, number, left, top, right, bottom):
     font18 = ImageFont.truetype('./fonts/mononoki-Regular.ttf', 40)
     draw.text((0, 0), text, font=font18)
 
-def update_image(number):
+def update_image(epd, number):
     logging.info('In update_image')
-    epd = epd7in5_V2.EPD()
-    logging.info('starting init')
-    try:
-        epd.init()
-    except:
-        print('epd.init() failed')
-    logging.info('starting Clear')
-    try:
-        epd.Clear()
-    except:
-        print("epd.Clear failed")
-    logging.info('done with Clear')
-    screen_w = epd.width
-    screen_h = epd.height
+
     image = Image.new('1', (screen_h, screen_w), 255)
     logging.info('Drawing image')
     draw = ImageDraw.Draw(image)
@@ -47,10 +34,10 @@ def update_image(number):
     epd.sleep()
 
 
-def callback_minute(context: CallbackContext):
+def callback_minute(epd, context: CallbackContext):
         global last_message_time
         global number
-        update_image(number)
+        update_image(epd, number)
         number = number + 1
         last_message_time = datetime.datetime.now()
 
@@ -59,13 +46,33 @@ def main():
     global last_message_time
     global number
     # TELEGRAM stuff
-    updater = Updater(token=config.telegram_token, use_context=True)
-    j = updater.job_queue
-    last_message_time = datetime.datetime.now() - datetime.timedelta(seconds=60)
-    number = 1
-    job_minute = j.run_repeating(callback_minute, interval=60, first=2)
-    updater.start_polling()
-    updater.idle()
+    try:
+        updater = Updater(token=config.telegram_token, use_context=True)
+        j = updater.job_queue
+        last_message_time = datetime.datetime.now() - datetime.timedelta(seconds=60)
+        number = 1
+        epd = epd7in5_V2.EPD()
+        logging.info('starting init')
+        try:
+            epd.init()
+        except:
+            print('epd.init() failed')
+        logging.info('starting Clear')
+        try:
+            epd.Clear()
+        except:
+            print("epd.Clear failed")
+        logging.info('done with Clear')
+        screen_w = epd.width
+        screen_h = epd.height
+        job_minute = j.run_repeating(callback_minute, interval=60, first=2, job_kwargs={'epd': epd})
+        updater.start_polling()
+        updater.idle()
+
+    except KeyboardInterrupt:
+        logging.info("ctrl + c:")
+        epd7in5_V2.epdconfig.module_exit()
+        exit()
 
 
 def main_simple():
@@ -97,4 +104,4 @@ def main_simple():
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                         level=logging.INFO)
-    main_simple()
+    main()

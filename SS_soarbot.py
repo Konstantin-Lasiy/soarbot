@@ -170,8 +170,8 @@ def update_image(station_data):
     draw_station_data(draw, station_data, 0+10, screen_h-10, screen_w-10, 0+10)
 
     epd.display(epd.getbuffer(image))
-    logging.info('Go to sleep')
-    epd.sleep()
+    #logging.info('Go to sleep')
+    #epd.sleep()
 
 
 def callback_minute(context: CallbackContext):
