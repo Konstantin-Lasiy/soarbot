@@ -78,13 +78,32 @@ def check_daytime():
     else:
         return False
 
+def check_midday():
+    """Returns True if it's either over 2 hours after sunrise or over 3 hours before sunset"""
+    current_time = datetime.datetime.now()
+    loc = LocationInfo("Salt Lake City", region='UT, USA', timezone='US/Mountain', latitude=40.5247,
+                       longitude=-111.8638)
+    s = sun(loc.observer, date=current_time, tzinfo='US/Mountain')
+    two_h_after_sunrise = (s['sunrise'] - datetime.timedelta(hours=2)).replace(tzinfo=None)
+    three_h_before_sunset = (s['sunset'] - datetime.timedelta(hours=3)).replace(tzinfo=None)
+    if two_h_after_sunrise < current_time < three_h_before_sunset:
+        return True
+    else:
+        return False
 
-def check_all_conditions(station_data):
+def check_all_conditions(station_data, winter):
     wind_is_acceptable = check_wind(station_data)
     is_raining = check_rain(station_data)
     strong_gusts = check_for_strong_gusts(station_data)
     daytime = check_daytime()
-    all_conditions_are_right = wind_is_acceptable and not is_raining and not strong_gusts and daytime
+
+    # In the summer one needs to include midday times.
+    if not winter:
+        midday = check_midday()
+    else:
+        midday = True
+    all_conditions_are_right = wind_is_acceptable and not is_raining and not strong_gusts and daytime \
+                               and not midday
     # TODO: Implement better logging of conditions.
     print('wind: {wind}'.format(wind=wind_is_acceptable))
     print('rain: {rain}'.format(rain=is_raining))
@@ -153,14 +172,8 @@ def draw_station_data(draw, station_data, left, top, right, bottom):
     font18 = ImageFont.truetype('./fonts/mononoki-Regular.ttf', 18)
     draw.text((0, 0), text, font=font18)
 
-def update_image(station_data):
+def update_image(epd, station_data):
     logging.info('In update_image')
-    epd = epd7in5_V2.EPD()
-    logging.info('starting init')
-    epd.init()
-    logging.info('starting Clear')
-    epd.Clear()
-    logging.info('done with Clear')
     screen_w = epd.width
     screen_h = epd.height
     image = Image.new('1', (screen_h, screen_w), 255)
@@ -176,31 +189,56 @@ def update_image(station_data):
 
 def callback_minute(context: CallbackContext):
     global last_message_time
+    epd = context.job.context['epd']
+    winter = context.job.context['winter']
     lookback_minutes = 120
     if datetime.datetime.now() - last_message_time > datetime.timedelta(hours=4):
         station_data = get_station_data(lookback_minutes)
-        all_parameters_met = check_all_conditions(station_data)
-        update_image(station_data)
+        all_parameters_met = check_all_conditions(station_data, winter)
+        update_image(epd, station_data)
         if all_parameters_met:
                 message = format_message(station_data)
-                # context.bot.send_message(chat_id='-1001370053492',
-                #                          text=message,
-                #                          parse_mode='HTML')
+                context.bot.send_message(chat_id='-1001370053492',
+                                         text=message,
+                                         parse_mode='HTML')
                 last_message_time = datetime.datetime.now()
 
 
 
 def main():
     global last_message_time
+    winter = False
     # TELEGRAM stuff
-    updater = Updater(token=config.telegram_token, use_context=True)
-    j = updater.job_queue
+    try:
+        updater = Updater(token=config.telegram_token, use_context=True)
+        j = updater.job_queue
 
-    last_message_time = datetime.datetime.now() - datetime.timedelta(hours=5)
-    job_minute = j.run_repeating(callback_minute, interval=60*5, first=2)
+        last_message_time = datetime.datetime.now() - datetime.timedelta(hours=5)
+        epd = epd7in5_V2.EPD()
+        logging.info('starting init')
 
-    updater.start_polling()
-    updater.idle()
+        try:
+            epd.init()
+        except:
+            print('epd.init() failed')
+
+        logging.info('starting Clear')
+
+        try:
+            epd.Clear()
+        except:
+            print("epd.Clear failed")
+
+        logging.info('done with Clear')
+        job_minute = j.run_repeating(callback_minute, interval=60*5, first=2, context={'epd': epd,
+                                                                                       'winter':winter})
+        updater.start_polling()
+        updater.idle()
+
+    except KeyboardInterrupt:
+        logging.info("ctrl + c:")
+        epd7in5_V2.epdconfig.module_exit()
+        exit()
 
         
 if __name__ == "__main__":
