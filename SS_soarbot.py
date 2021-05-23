@@ -2,28 +2,26 @@ import requests
 import pandas as pd
 import json
 import os
-import smtplib, ssl
 import config
 import logging
-import astral
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Updater, CallbackContext
 import datetime
 from astral.sun import sun
 from astral import LocationInfo
-from PIL import Image,ImageDraw,ImageFont
+from PIL import Image, ImageDraw, ImageFont
 import epd7in5_V2
 
-def get_station_data(lookback_minutes = 30):
+
+def get_station_data(lookback_minutes=30):
     request_string = 'https://api.synopticdata.com/v2/stations/timeseries?\
     token={token}&\
     recent={lookback_minutes}&\
     stid=FPS&\
     state=ut&\
     units=english&\
-    obtimezone=LOCAL'\
-    .format(token=config.token,
-            lookback_minutes=lookback_minutes)
+    obtimezone=LOCAL' \
+        .format(token=config.token,
+                lookback_minutes=lookback_minutes)
 
     page = requests.get(request_string)
     wdata = json.loads(page.text)
@@ -40,7 +38,7 @@ def check_wind(station_data):
     wind_top_value = 16
     wind_speed_is_acceptable = ((last_3_wind_speeds > wind_bottom_value) &
                                 (last_3_wind_speeds < wind_top_value)).all().iloc[0]
-    
+
     last_3_wind_directions = station_data.tail(3)[['wind_direction_set_1']]
     bottom_wind_dir_value = 130
     top_win_dir_value = 180
@@ -78,6 +76,7 @@ def check_daytime():
     else:
         return False
 
+
 def check_midday():
     """Returns True if it's either over 2 hours after sunrise or over 3 hours before sunset"""
     current_time = datetime.datetime.now()
@@ -91,6 +90,7 @@ def check_midday():
     else:
         return False
 
+
 def check_all_conditions(station_data, winter):
     wind_is_acceptable = check_wind(station_data)
     is_raining = check_rain(station_data)
@@ -102,28 +102,27 @@ def check_all_conditions(station_data, winter):
         midday = check_midday()
     else:
         midday = True
-    all_conditions_are_right = wind_is_acceptable and not is_raining and not strong_gusts and daytime \
-                               and not midday
-    # TODO: Implement better logging of conditions.
-    print('wind: {wind}'.format(wind=wind_is_acceptable))
-    print('rain: {rain}'.format(rain=is_raining))
-    print('gusts: {gusts}'.format(gusts=strong_gusts))
-    print('daytime: {daytime}'.format(daytime=check_daytime()))
-    print('all_conditions: {all_conditions}'.format(all_conditions=all_conditions_are_right))
+    all_conditions_are_right = wind_is_acceptable and not is_raining and not strong_gusts and daytime and not midday
+    logging.info('wind: {wind}'.format(wind=wind_is_acceptable))
+    logging.info('rain: {rain}'.format(rain=is_raining))
+    logging.info('gusts: {gusts}'.format(gusts=strong_gusts))
+    logging.info('daytime: {daytime}'.format(daytime=daytime))
+    logging.info('midday: {midday}'.format(midday=midday))
+    logging.info('all_conditions: {all_conditions}'.format(all_conditions=all_conditions_are_right))
     if all_conditions_are_right:
         return True
     else:
         return False
 
-def play_sound():
-    command = "omxplayer 'Alarm Alert Effect-SoundBible.com-462520910.mp3' -g 100" 
-    os.system(command)
 
+def play_sound():
+    command = "omxplayer 'Alarm Alert Effect-SoundBible.com-462520910.mp3' -g 100"
+    os.system(command)
 
 
 def latest_readings(bot, job):
     station_data = get_station_data()
-    message =''
+    message = ''
     order = [5, 2, 4, 1, 3, 0]  # switches the order so that the columns are lined up
     # in the notification preview on iPhone
     for i in order:
@@ -140,13 +139,14 @@ def latest_readings(bot, job):
             row['wind_speed_set_1'], " " * 0,
             row['wind_cardinal_direction_set_1d']))
     bot.send_message(chat_id='-1001370053492',
-                             text=message)
+                     text=message)
+
 
 def format_message(station_data, rows=6, html=True):
     if html:
-        message = "<pre>" #""TIME  |  WIND SPEEDgGUST | WIND DIRECTION \n"
+        message = "<pre>"  # ""TIME  |  WIND SPEEDgGUST | WIND DIRECTION \n"
     else:
-        message = ""
+        message = "TIME  |  WIND SPEEDgGUST | WIND DIRECTION \n"
     for index, row in station_data.tail(rows).iloc[::-1].iterrows():
         message += ('{:%H:%M} | {}{:1.0f}g{:1.0f} | {} \n'.format(
             row['date_time'], " " * 0,
@@ -167,10 +167,12 @@ def format_message(station_data, rows=6, html=True):
 '''
     return message
 
+
 def draw_station_data(draw, station_data, left, top, right, bottom):
     text = format_message(station_data, rows=20, html=False)
-    font18 = ImageFont.truetype('./fonts/mononoki-Regular.ttf', 18)
+    font18 = ImageFont.truetype('./fonts/mononoki-Regular.ttf', 30)
     draw.text((0, 0), text, font=font18)
+
 
 def update_image(epd, station_data):
     logging.info('In update_image')
@@ -180,11 +182,11 @@ def update_image(epd, station_data):
 
     logging.info('Drawing calendar')
     draw = ImageDraw.Draw(image)
-    draw_station_data(draw, station_data, 0+10, screen_h-10, screen_w-10, 0+10)
+    draw_station_data(draw, station_data, 0 + 10, screen_h - 10, screen_w - 10, 0 + 10)
 
     epd.display(epd.getbuffer(image))
-    #logging.info('Go to sleep')
-    #epd.sleep()
+    # logging.info('Go to sleep')
+    # epd.sleep()
 
 
 def callback_minute(context: CallbackContext):
@@ -197,12 +199,11 @@ def callback_minute(context: CallbackContext):
         all_parameters_met = check_all_conditions(station_data, winter)
         update_image(epd, station_data)
         if all_parameters_met:
-                message = format_message(station_data)
-                context.bot.send_message(chat_id='-1001370053492',
-                                         text=message,
-                                         parse_mode='HTML')
-                last_message_time = datetime.datetime.now()
-
+            message = format_message(station_data)
+            context.bot.send_message(chat_id='-1001370053492',
+                                     text=message,
+                                     parse_mode='HTML')
+            last_message_time = datetime.datetime.now()
 
 
 def main():
@@ -230,8 +231,8 @@ def main():
             print("epd.Clear failed")
 
         logging.info('done with Clear')
-        job_minute = j.run_repeating(callback_minute, interval=60*5, first=2, context={'epd': epd,
-                                                                                       'winter':winter})
+        job_minute = j.run_repeating(callback_minute, interval=60 * 5, first=2, context={'epd': epd,
+                                                                                         'winter': winter})
         updater.start_polling()
         updater.idle()
 
@@ -240,7 +241,7 @@ def main():
         epd7in5_V2.epdconfig.module_exit()
         exit()
 
-        
+
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                         level=logging.INFO)
