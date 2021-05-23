@@ -30,7 +30,10 @@ def update_image(number):
     except:
         print('epd.init() failed')
     logging.info('starting Clear')
-    epd.Clear()
+    try:
+        epd.Clear()
+    except:
+        print("epd.Clear failed")
     logging.info('done with Clear')
     screen_w = epd.width
     screen_h = epd.height
