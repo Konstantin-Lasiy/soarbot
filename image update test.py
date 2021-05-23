@@ -23,6 +23,10 @@ def draw_station_data(draw, number, left, top, right, bottom):
 
 def update_image(epd, number):
     logging.info('In update_image')
+    try:
+        epd.init()
+    except:
+        print('init failed')
     screen_w = epd.width
     screen_h = epd.height
     image = Image.new('1', (screen_h, screen_w), 255)
@@ -31,8 +35,8 @@ def update_image(epd, number):
     draw_station_data(draw, number, 0+10, screen_h-10, screen_w-10, 0+10)
 
     epd.display(epd.getbuffer(image))
-    #logging.info('Go to sleep')
-    #epd.sleep()
+    logging.info('Go to sleep')
+    epd.sleep()
 
 
 def callback_minute(context: CallbackContext):
