@@ -40,10 +40,10 @@ def update_image(number):
     logging.info('Go to sleep')
     epd.sleep()
 
+
 def callback_minute(context: CallbackContext):
         global last_message_time
         global number
-
         if datetime.datetime.now() - last_message_time > datetime.timedelta(seconds=10):
             number = number + 1
             update_image(number)
