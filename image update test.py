@@ -38,7 +38,7 @@ def update_image(epd, number):
 def callback_minute(context: CallbackContext):
         global last_message_time
         global number
-        epd = context.epd
+        epd = context['epd']
         update_image(epd, number)
         number = number + 1
         last_message_time = datetime.datetime.now()
