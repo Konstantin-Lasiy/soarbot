@@ -34,7 +34,7 @@ def update_image(epd, number):
     epd.sleep()
 
 
-def callback_minute(epd, context: CallbackContext):
+def callback_minute(epd):
         global last_message_time
         global number
         update_image(epd, number)
