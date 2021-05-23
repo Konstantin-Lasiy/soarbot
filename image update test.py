@@ -91,7 +91,7 @@ def main_simple():
         draw_station_data(draw, number, 0 + 10, screen_h - 10, screen_w - 10, 0 + 10)
         epd.display(epd.getbuffer(image))
         logging.info('Go to sleep')
-        epd.sleep()
+    epd.sleep()
 
 
 if __name__ == "__main__":
