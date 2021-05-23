@@ -44,10 +44,9 @@ def update_image(number):
 def callback_minute(context: CallbackContext):
         global last_message_time
         global number
-        if datetime.datetime.now() - last_message_time > datetime.timedelta(seconds=10):
-            number = number + 1
-            update_image(number)
-            last_message_time = datetime.datetime.now()
+        number = number + 1
+        update_image(number)
+        last_message_time = datetime.datetime.now()
 
 
 def main():
@@ -56,9 +55,9 @@ def main():
     # TELEGRAM stuff
     updater = Updater(token=config.telegram_token, use_context=True)
     j = updater.job_queue
-    last_message_time = datetime.datetime.now() - datetime.timedelta(seconds=10)
+    last_message_time = datetime.datetime.now() - datetime.timedelta(seconds=60)
     number = 1
-    job_minute = j.run_repeating(callback_minute, interval=10, first=2)
+    job_minute = j.run_repeating(callback_minute, interval=60, first=2)
     updater.start_polling()
     updater.idle()
 
