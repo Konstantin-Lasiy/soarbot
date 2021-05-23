@@ -45,6 +45,7 @@ def callback_minute(epd, context: CallbackContext):
 def main():
     global last_message_time
     global number
+    global epd
     # TELEGRAM stuff
     try:
         updater = Updater(token=config.telegram_token, use_context=True)
@@ -65,7 +66,7 @@ def main():
         logging.info('done with Clear')
         screen_w = epd.width
         screen_h = epd.height
-        job_minute = j.run_repeating(callback_minute(epd), interval=60, first=2)
+        job_minute = j.run_repeating(callback_minute, interval=60, first=2, context={'epd': epd})
         updater.start_polling()
         updater.idle()
 
