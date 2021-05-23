@@ -65,7 +65,7 @@ def main():
         logging.info('done with Clear')
         screen_w = epd.width
         screen_h = epd.height
-        job_minute = j.run_repeating(callback_minute, interval=60, first=2, job_kwargs={'epd': epd})
+        job_minute = j.run_repeating(callback_minute(epd), interval=60, first=2)
         updater.start_polling()
         updater.idle()
 
