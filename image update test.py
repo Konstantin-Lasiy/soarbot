@@ -23,7 +23,8 @@ def draw_station_data(draw, number, left, top, right, bottom):
 
 def update_image(epd, number):
     logging.info('In update_image')
-
+    screen_w = epd.width
+    screen_h = epd.height
     image = Image.new('1', (screen_h, screen_w), 255)
     logging.info('Drawing image')
     draw = ImageDraw.Draw(image)
@@ -64,8 +65,6 @@ def main():
         except:
             print("epd.Clear failed")
         logging.info('done with Clear')
-        screen_w = epd.width
-        screen_h = epd.height
         job_minute = j.run_repeating(callback_minute, interval=60, first=2, context={'epd': epd})
         updater.start_polling()
         updater.idle()
