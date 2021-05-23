@@ -25,7 +25,10 @@ def update_image(number):
     logging.info('In update_image')
     epd = epd7in5_V2.EPD()
     logging.info('starting init')
-    epd.init()
+    try:
+        epd.init()
+    except:
+        print('epd.init() failed')
     logging.info('starting Clear')
     epd.Clear()
     logging.info('done with Clear')
@@ -44,8 +47,8 @@ def update_image(number):
 def callback_minute(context: CallbackContext):
         global last_message_time
         global number
-        number = number + 1
         update_image(number)
+        number = number + 1
         last_message_time = datetime.datetime.now()
 
 
