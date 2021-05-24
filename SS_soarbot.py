@@ -194,7 +194,7 @@ def callback_minute(context: CallbackContext):
     epd = context.job.context['epd']
     winter = context.job.context['winter']
     lookback_minutes = 120
-    if datetime.datetime.now() - last_message_time > datetime.timedelta(hours=4) and not check_midday():
+    if datetime.datetime.now() - last_message_time > datetime.timedelta(hours=4) and not check_midday() and check_daytime():
         station_data = get_station_data(lookback_minutes)
         all_parameters_met = check_all_conditions(station_data, winter)
         update_image(epd, station_data)
