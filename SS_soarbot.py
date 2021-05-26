@@ -71,10 +71,8 @@ def check_daytime():
     s = sun(loc.observer, date=current_time, tzinfo='US/Mountain')
     approx_sunrise = (s['sunrise'] - datetime.timedelta(minutes=10)).replace(tzinfo=None)
     approx_sunset = (s['sunset'] - datetime.timedelta(minutes=30)).replace(tzinfo=None)
-    if approx_sunrise < current_time < approx_sunset:
-        return True
-    else:
-        return False
+    is_daytime = approx_sunrise < current_time < approx_sunset
+    return is_daytime
 
 
 def check_midday():
