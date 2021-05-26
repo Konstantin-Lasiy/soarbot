@@ -85,10 +85,8 @@ def check_midday():
     s = sun(loc.observer, date=current_time, tzinfo='US/Mountain')
     two_h_after_sunrise = (s['sunrise'] - datetime.timedelta(hours=2)).replace(tzinfo=None)
     three_h_before_sunset = (s['sunset'] - datetime.timedelta(hours=3)).replace(tzinfo=None)
-    if two_h_after_sunrise < current_time < three_h_before_sunset:
-        return True
-    else:
-        return False
+    is_midday = two_h_after_sunrise < current_time < three_h_before_sunset
+    return is_midday
 
 
 def check_all_conditions(station_data, winter):
