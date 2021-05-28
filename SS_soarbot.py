@@ -76,12 +76,12 @@ def check_daytime():
 
 
 def check_midday():
-    """Returns True if it's either over 2 hours after sunrise or over 3 hours before sunset"""
+    """Returns True if it's either over 2 hours after sunrise and over 3 hours before sunset"""
     current_time = datetime.datetime.now()
     loc = LocationInfo("Salt Lake City", region='UT, USA', timezone='US/Mountain', latitude=40.5247,
                        longitude=-111.8638)
     s = sun(loc.observer, date=current_time, tzinfo='US/Mountain')
-    two_h_after_sunrise = (s['sunrise'] - datetime.timedelta(hours=2)).replace(tzinfo=None)
+    two_h_after_sunrise = (s['sunrise'] + datetime.timedelta(hours=2)).replace(tzinfo=None)
     three_h_before_sunset = (s['sunset'] - datetime.timedelta(hours=3)).replace(tzinfo=None)
     is_midday = two_h_after_sunrise < current_time < three_h_before_sunset
     return is_midday
