@@ -14,7 +14,8 @@ from astral import LocationInfo
 from PIL import Image,ImageDraw,ImageFont
 import epd7in5_V2
 
-def get_station_data(lookback_minutes = 30):
+
+def get_station_data(lookback_minutes=30):
     request_string = 'https://api.synopticdata.com/v2/stations/timeseries?\
     token={token}&\
     recent={lookback_minutes}&\
@@ -123,6 +124,7 @@ def latest_readings(bot, job):
     bot.send_message(chat_id='-1001370053492',
                              text=message)
 
+
 def format_message(station_data, rows=6, html=True):
     if html:
         message = "<pre>" #""TIME  |  WIND SPEEDgGUST | WIND DIRECTION \n"
@@ -148,10 +150,12 @@ def format_message(station_data, rows=6, html=True):
 '''
     return message
 
+
 def draw_station_data(draw, station_data, left, top, right, bottom):
     text = format_message(station_data, rows=20, html=False)
     font18 = ImageFont.truetype('./fonts/mononoki-Regular.ttf', 18)
     draw.text((0, 0), text, font=font18)
+
 
 def update_image(station_data):
     logging.info('In update_image')
@@ -187,7 +191,6 @@ def callback_minute(context: CallbackContext):
                                      text=message,
                                      parse_mode='HTML')
             last_message_time = datetime.datetime.now()
-
 
 
 def main():
