@@ -36,7 +36,7 @@ def get_station_data(lookback_minutes=30):
 
 def check_wind(station_data):
     last_3_wind_speeds = station_data.tail(3)[['wind_speed_set_1']]
-    wind_bottom_value = 9
+    wind_bottom_value = 8.5
     wind_top_value = 16
     wind_speed_is_acceptable = ((last_3_wind_speeds > wind_bottom_value) &
                                 (last_3_wind_speeds < wind_top_value)).all().iloc[0]
