@@ -9,7 +9,9 @@ import datetime
 from astral.sun import sun
 from astral import LocationInfo
 from PIL import Image, ImageDraw, ImageFont
-import epd7in5_V2
+
+
+# import epd7in5_V2
 
 
 def get_station_data(lookback_minutes=30):
@@ -187,13 +189,15 @@ def update_image(epd, station_data):
 
 def callback_minute(context: CallbackContext):
     global last_message_time
-    epd = context.job.context['epd']
+    # epd = context.job.context['epd']
     winter = context.job.context['winter']
     lookback_minutes = 120
-    if datetime.datetime.now() - last_message_time > datetime.timedelta(hours=4) and not check_midday() and check_daytime():
+    time_since_last_message = datetime.datetime.now() - last_message_time
+    if (time_since_last_message > datetime.timedelta(hours=4)
+            and not check_midday() and check_daytime()):
         station_data = get_station_data(lookback_minutes)
         all_parameters_met = check_all_conditions(station_data, winter)
-        update_image(epd, station_data)
+        # update_image(epd, station_data)
         if all_parameters_met:
             message = format_message(station_data)
             context.bot.send_message(chat_id='-1001370053492',
@@ -211,30 +215,30 @@ def main():
         j = updater.job_queue
 
         last_message_time = datetime.datetime.now() - datetime.timedelta(hours=5)
-        epd = epd7in5_V2.EPD()
+        # epd = epd7in5_V2.EPD()
         logging.info('starting init')
 
         try:
-            epd.init()
+            print()  # epd.init()
         except:
             print('epd.init() failed')
 
         logging.info('starting Clear')
 
         try:
-            epd.Clear()
+            print()  # epd.Clear()
         except:
             print("epd.Clear failed")
 
         logging.info('done with Clear')
-        job_minute = j.run_repeating(callback_minute, interval=60 * 5, first=2, context={'epd': epd,
-                                                                                         'winter': winter})
+        job_minute = j.run_repeating(callback_minute, interval=60 * 5, first=2, context={  # epd,
+            'winter': winter})
         updater.start_polling()
         updater.idle()
 
     except KeyboardInterrupt:
         logging.info("ctrl + c:")
-        epd7in5_V2.epdconfig.module_exit()
+        # epd7in5_V2.epdconfig.module_exit()
         exit()
 
 
