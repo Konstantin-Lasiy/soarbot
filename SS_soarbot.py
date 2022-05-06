@@ -61,7 +61,7 @@ def check_rain(station_data):
 
 def check_for_strong_gusts(station_data):
     last_3_gust_readings = station_data.tail(3)['wind_gust_set_1'] - station_data.tail(3)['wind_speed_set_1']
-    gust_limit = 4
+    gust_limit = 5
     gust_over_limit = (last_3_gust_readings > gust_limit).any()
     return gust_over_limit
 
