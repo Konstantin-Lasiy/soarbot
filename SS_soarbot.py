@@ -11,7 +11,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 import datetime
 from astral.sun import sun
 from astral import LocationInfo
-from PIL import Image,ImageDraw,ImageFont
+from PIL import Image, ImageDraw, ImageFont
 import epd7in5_V2
 
 
@@ -97,15 +97,15 @@ def check_all_conditions(station_data):
     else:
         return False
 
+
 def play_sound():
     command = "omxplayer 'Alarm Alert Effect-SoundBible.com-462520910.mp3' -g 100" 
     os.system(command)
 
 
-
 def latest_readings(bot, job):
     station_data = get_station_data()
-    message =''
+    message = ''
     order = [5, 2, 4, 1, 3, 0]  # switches the order so that the columns are lined up
     # in the notification preview on iPhone
     for i in order:
@@ -183,7 +183,7 @@ def callback_minute(context: CallbackContext):
     lookback_minutes = 120
     station_data = get_station_data(lookback_minutes)
     all_parameters_met = check_all_conditions(station_data)
-    #update_image(station_data)
+    # update_image(station_data)
     if all_parameters_met:
         if datetime.datetime.now() - last_message_time > datetime.timedelta(hours=4):
             message = format_message(station_data)
