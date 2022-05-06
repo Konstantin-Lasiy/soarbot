@@ -15,13 +15,13 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 def get_station_data(lookback_minutes=30):
-    request_string = 'https://api.synopticdata.com/v2/stations/timeseries?\
-    token={token}&\
-    recent={lookback_minutes}&\
-    stid=FPS&\
-    state=ut&\
-    units=english&\
-    obtimezone=LOCAL' \
+    request_string = 'https://api.synopticdata.com/v2/stations/timeseries?' \
+                     'token={token}&' \
+                     'recent={lookback_minutes}&' \
+                     'stid=FPS&' \
+                     'state=ut&' \
+                     'units=english&' \
+                     'obtimezone=LOCAL' \
         .format(token=config.token,
                 lookback_minutes=lookback_minutes)
 
