@@ -11,7 +11,7 @@ from astral import LocationInfo
 from PIL import Image, ImageDraw, ImageFont
 
 
-# import epd7in5_V2
+import epd7in5_V2
 
 
 def get_station_data(lookback_minutes=30):
@@ -46,9 +46,6 @@ def check_wind(station_data):
     top_win_dir_value = 180
     wind_dir_is_acceptable = ((last_3_wind_directions > bottom_wind_dir_value) &
                               (last_3_wind_directions < top_win_dir_value)).all().iloc[0]
-
-    print('wind speed: {wind_speed_is_acceptable}'.format(wind_speed_is_acceptable=wind_speed_is_acceptable))
-    print('wind direction: {wind_dir_is_acceptable}'.format(wind_dir_is_acceptable=wind_dir_is_acceptable))
     wind_is_acceptable = wind_speed_is_acceptable and wind_dir_is_acceptable
     return wind_is_acceptable
 
@@ -144,9 +141,9 @@ def format_message(station_data, rows=6, html=True):
     if html:
         message = "<pre>"  # ""TIME  |  WIND SPEEDgGUST | WIND DIRECTION \n"
     else:
-        message = "TIME  |  WIND SPEEDgGUST | WIND DIRECTION \n"
+        message = "\n"
     for index, row in station_data.tail(rows).iloc[::-1].iterrows():
-        message += ('{:%H:%M} | {}{:1.0f}g{:1.0f} | {} \n'.format(
+        message += ('{:%H:%M} | {}{:2.0f}g{:1.0f} | {} \n'.format(
             row['date_time'], " " * 0,
             row['wind_speed_set_1'],
             row['wind_gust_set_1'],
@@ -154,96 +151,97 @@ def format_message(station_data, rows=6, html=True):
     if html:
         message += '</pre>'
     else:
-        message += '''       __,-, 
-    ,-'  \  \ 
-  ,'   \  \  \ 
- /  \   \ _,==;
-/ \  \.,="|  |
-\  \ /'   | |
- \  /'--,_o_|
-  `<'_,---|#, 
-'''
+        message += ''
     return message
 
 
 def draw_station_data(draw, station_data, left, top, right, bottom):
-    text = format_message(station_data, rows=20, html=False)
-    font18 = ImageFont.truetype('./fonts/mononoki-Regular.ttf', 30)
-    draw.text((0, 0), text, font=font18)
+    text = format_message(station_data, rows=10, html=False)
+    font18 = ImageFont.truetype('./fonts/mononoki-Regular.ttf', 22)
+    draw.text((left, top), text, font=font18)
 
 
-def update_image(epd, station_data):
+def update_image(epd, station_data, good_conditions):
     logging.info('In update_image')
+    logging.info('starting init')
+    try:
+        epd.init()
+    except:
+        print('epd.init() failed')
     screen_w = epd.width
     screen_h = epd.height
     image = Image.new('1', (screen_h, screen_w), 255)
-
-    logging.info('Drawing calendar')
+    logging.info('Drawing image')
+    
     draw = ImageDraw.Draw(image)
-    draw_station_data(draw, station_data, 0 + 10, screen_h - 10, screen_w - 10, 0 + 10)
-
+    draw_station_data(draw, station_data, 120, 40, screen_w - 10, 0 + 10)
+    if good_conditions:
+        im2 = Image.open("paraglider-paragliding.bmp")
+        image.paste(im2, (80, 300))
     epd.display(epd.getbuffer(image))
-    # logging.info('Go to sleep')
-    # epd.sleep()
+    logging.info('Go to sleep')
+    epd.sleep()
 
 
 def callback_minute(context: CallbackContext):
     global last_message_time
-    # epd = context.job.context['epd']
+    epd = context.job.context['epd']
     winter = context.job.context['winter']
     lookback_minutes = 120
     time_since_last_message = datetime.datetime.now() - last_message_time
-    if (time_since_last_message > datetime.timedelta(hours=4)
-            and not check_midday() and check_daytime()):
-        station_data = get_station_data(lookback_minutes)
-        all_parameters_met = check_all_conditions(station_data, winter)
-        # update_image(epd, station_data)
-        if all_parameters_met:
-            message = format_message(station_data)
-            context.bot.send_message(chat_id='-1001370053492',
-                                     text=message,
-                                     parse_mode='HTML')
-            last_message_time = datetime.datetime.now()
+    station_data = get_station_data(lookback_minutes)
+    all_parameters_met = check_all_conditions(station_data, winter)
+    update_image(epd, station_data, all_parameters_met)
+    if True: #morning
+        play_sound()
+    if all_parameters_met and time_since_last_message > datetime.timedelta(hours=4):
+        message = format_message(station_data)
+        context.bot.send_message(chat_id='-1001370053492',
+                                 text=message,
+                                 parse_mode='HTML')
+        last_message_time = datetime.datetime.now()
 
 
 def main():
     global last_message_time
     winter = False
-    # TELEGRAM stuff
+
     try:
         updater = Updater(token=config.telegram_token, use_context=True)
         j = updater.job_queue
 
         last_message_time = datetime.datetime.now() - datetime.timedelta(hours=5)
-        # epd = epd7in5_V2.EPD()
+        epd = epd7in5_V2.EPD()
+        
         logging.info('starting init')
-
         try:
-            print()  # epd.init()
+            epd.init()
         except:
             print('epd.init() failed')
 
         logging.info('starting Clear')
-
         try:
-            print()  # epd.Clear()
+            epd.Clear()
         except:
             print("epd.Clear failed")
-
         logging.info('done with Clear')
-        job_minute = j.run_repeating(callback_minute, interval=60 * 5, first=2, context={  # epd,
+        epd.sleep()
+        
+        job_minute = j.run_repeating(callback_minute, interval=60, first=2, context={'epd':epd,
             'winter': winter})
         updater.start_polling()
         updater.idle()
 
     except KeyboardInterrupt:
         logging.info("ctrl + c:")
-        # epd7in5_V2.epdconfig.module_exit()
+        epd7in5_V2.epdconfig.module_exit()
         exit()
 
 
 if __name__ == "__main__":
-    logging.basicConfig(filename="std.log",
-                        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                        level=logging.INFO)
+    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                        level=logging.INFO,
+                        handlers=[
+                            logging.FileHandler("std.log"),
+                            logging.StreamHandler()])
     main()
