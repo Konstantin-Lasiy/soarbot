@@ -4,12 +4,12 @@ import json
 import os
 import config
 import logging
-from telegram.ext import Updater, CallbackContext
+from logging.handlers import RotatingFileHandler
+import telegram
 import datetime
 from astral.sun import sun
 from astral import LocationInfo
 from PIL import Image, ImageDraw, ImageFont
-
 
 import epd7in5_V2
 
@@ -98,12 +98,12 @@ def check_all_conditions(station_data, winter):
     else:
         midday = True
     all_conditions_are_right = wind_is_acceptable and not is_raining and not strong_gusts and daytime and not midday
-    logging.info('wind: {wind}'.format(wind=wind_is_acceptable))
-    logging.info('rain: {rain}'.format(rain=is_raining))
-    logging.info('gusts: {gusts}'.format(gusts=strong_gusts))
-    logging.info('daytime: {daytime}'.format(daytime=daytime))
-    logging.info('midday: {midday}'.format(midday=midday))
-    logging.info('all_conditions: {all_conditions}'.format(all_conditions=all_conditions_are_right))
+    app_log.info('wind: {wind}'.format(wind=wind_is_acceptable))
+    app_log.info('rain: {rain}'.format(rain=is_raining))
+    app_log.info('gusts: {gusts}'.format(gusts=strong_gusts))
+    app_log.info('daytime: {daytime}'.format(daytime=daytime))
+    app_log.info('midday: {midday}'.format(midday=midday))
+    app_log.info('all_conditions: {all_conditions}'.format(all_conditions=all_conditions_are_right))
     if all_conditions_are_right:
         return True
     else:
@@ -162,8 +162,8 @@ def draw_station_data(draw, station_data, left, top, right, bottom):
 
 
 def update_image(epd, station_data, good_conditions):
-    logging.info('In update_image')
-    logging.info('starting init')
+    app_log.info('In update_image')
+    app_log.info('starting init')
     try:
         epd.init()
     except:
@@ -171,7 +171,7 @@ def update_image(epd, station_data, good_conditions):
     screen_w = epd.width
     screen_h = epd.height
     image = Image.new('1', (screen_h, screen_w), 255)
-    logging.info('Drawing image')
+    app_log.info('Drawing image')
     
     draw = ImageDraw.Draw(image)
     draw_station_data(draw, station_data, 120, 40, screen_w - 10, 0 + 10)
@@ -179,14 +179,12 @@ def update_image(epd, station_data, good_conditions):
         im2 = Image.open("paraglider-paragliding.bmp")
         image.paste(im2, (80, 300))
     epd.display(epd.getbuffer(image))
-    logging.info('Go to sleep')
+    app_log.info('Go to sleep')
     epd.sleep()
 
 
-def callback_minute(context: CallbackContext):
+def repeated_job(bot, epd, winter):
     global last_message_time
-    epd = context.job.context['epd']
-    winter = context.job.context['winter']
     lookback_minutes = 120
     time_since_last_message = datetime.datetime.now() - last_message_time
     station_data = get_station_data(lookback_minutes)
@@ -194,9 +192,10 @@ def callback_minute(context: CallbackContext):
     update_image(epd, station_data, all_parameters_met)
     if True: #morning
         play_sound()
+        #TODO add Alexa push alert
     if all_parameters_met and time_since_last_message > datetime.timedelta(hours=4):
         message = format_message(station_data)
-        context.bot.send_message(chat_id='-1001370053492',
+        bot.send_message(chat_id='-1001370053492',
                                  text=message,
                                  parse_mode='HTML')
         last_message_time = datetime.datetime.now()
@@ -207,33 +206,30 @@ def main():
     winter = False
 
     try:
-        updater = Updater(token=config.telegram_token, use_context=True)
-        j = updater.job_queue
+        bot = telegram.Bot(config.telegram_token)
 
         last_message_time = datetime.datetime.now() - datetime.timedelta(hours=5)
         epd = epd7in5_V2.EPD()
         
-        logging.info('starting init')
+        app_log.info('starting init')
         try:
             epd.init()
         except:
             print('epd.init() failed')
 
-        logging.info('starting Clear')
+        app_log.info('starting Clear')
         try:
             epd.Clear()
         except:
             print("epd.Clear failed")
-        logging.info('done with Clear')
+        app_log.info('done with Clear')
         epd.sleep()
         
-        job_minute = j.run_repeating(callback_minute, interval=60, first=2, context={'epd':epd,
-            'winter': winter})
-        updater.start_polling()
-        updater.idle()
+        while True:
+            repeated_job(bot,epd,winter)
 
     except KeyboardInterrupt:
-        logging.info("ctrl + c:")
+        app_log.info("ctrl + c:")
         epd7in5_V2.epdconfig.module_exit()
         exit()
 
@@ -244,4 +240,18 @@ if __name__ == "__main__":
                         handlers=[
                             logging.FileHandler("std.log"),
                             logging.StreamHandler()])
+    log_formatter = logging.Formatter('%(asctime)s %(levelname)s %(funcName)s(%(lineno)d) %(message)s')
+    logFile = 'std.log'
+    my_handler = RotatingFileHandler(logFile, mode='a', maxBytes=5*1024*1024, 
+                                    backupCount=2, encoding=None, delay=False)
+    my_handler.setFormatter(log_formatter)
+    my_handler.setLevel(logging.INFO)
+
+    app_log = logging.getLogger('root')
+    app_log.setLevel(logging.INFO)
+    app_log.addHandler(my_handler)
+
+    while True:
+        app_log.info("data")
+
     main()
