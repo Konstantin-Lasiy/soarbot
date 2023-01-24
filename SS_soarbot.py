@@ -237,11 +237,6 @@ def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                        level=logging.INFO,
-                        handlers=[
-                            logging.FileHandler("std.log"),
-                            logging.StreamHandler()])
     log_formatter = logging.Formatter('%(asctime)s %(levelname)s %(funcName)s(%(lineno)d) %(message)s')
     logFile = 'std.log'
     my_handler = RotatingFileHandler(logFile, mode='a', maxBytes=5*1024*1024, 
@@ -252,8 +247,5 @@ if __name__ == "__main__":
     app_log = logging.getLogger('root')
     app_log.setLevel(logging.INFO)
     app_log.addHandler(my_handler)
-
-    while True:
-        app_log.info("data")
 
     main()
