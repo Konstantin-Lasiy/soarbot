@@ -1,4 +1,5 @@
 import requests
+import time
 import pandas as pd
 import json
 import os
@@ -199,6 +200,7 @@ def repeated_job(bot, epd, winter):
                                  text=message,
                                  parse_mode='HTML')
         last_message_time = datetime.datetime.now()
+    time.sleep(config.sleep_time)
 
 
 def main():
