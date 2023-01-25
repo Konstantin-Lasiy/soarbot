@@ -11,8 +11,11 @@ import datetime
 from astral.sun import sun
 from astral import LocationInfo
 from PIL import Image, ImageDraw, ImageFont
+import asyncio
 
 import epd7in5_V2
+
+absolute_path = os.path.dirname(__file__)
 
 
 def get_station_data(lookback_minutes=30):
@@ -109,10 +112,13 @@ def check_all_conditions(station_data, winter):
         return True
     else:
         return False
-
+relative_path = "src/lib"
+full_path = os.path.join(absolute_path, relative_path)
 
 def play_sound():
-    command = "omxplayer 'Alarm Alert Effect-SoundBible.com-462520910.mp3' -g 100"
+    relative_path = 'Alarm Alert Effect-SoundBible.com-462520910.mp3'
+    path_to_alarm = os.path.join(absolute_path, relative_path)
+    command = f"omxplayer {path_to_alarm} -g 100"
     os.system(command)
 
 
@@ -158,7 +164,9 @@ def format_message(station_data, rows=6, html=True):
 
 def draw_station_data(draw, station_data, left, top, right, bottom):
     text = format_message(station_data, rows=10, html=False)
-    font18 = ImageFont.truetype('./fonts/mononoki-Regular.ttf', 22)
+    relative_path = './fonts/mononoki-Regular.ttf'
+    path_to_font = os.path.join(absolute_path, relative_path)
+    font18 = ImageFont.truetype(path_to_font, 22)
     draw.text((left, top), text, font=font18)
 
 
@@ -177,39 +185,44 @@ def update_image(epd, station_data, good_conditions):
     draw = ImageDraw.Draw(image)
     draw_station_data(draw, station_data, 120, 40, screen_w - 10, 0 + 10)
     if good_conditions:
-        im2 = Image.open("paraglider-paragliding.bmp")
+        im2 = Image.open(os.path.join(absolute_path, "paraglider-paragliding.bmp"))
         image.paste(im2, (80, 300))
     epd.display(epd.getbuffer(image))
     app_log.info('Go to sleep')
     epd.sleep()
 
 
-def repeated_job(bot, epd, winter):
+async def repeated_job(bot, epd, winter):
     global last_message_time
     lookback_minutes = 120
     time_since_last_message = datetime.datetime.now() - last_message_time
     station_data = get_station_data(lookback_minutes)
     all_parameters_met = check_all_conditions(station_data, winter)
     update_image(epd, station_data, all_parameters_met)
-    if True: #morning
-        play_sound()
+    #if True: #morning
+        #play_sound()
         #TODO add Alexa push alert
     if all_parameters_met and time_since_last_message > datetime.timedelta(hours=4):
         message = format_message(station_data)
-        bot.send_message(chat_id='-1001370053492',
+        async with bot:
+            await bot.send_message(chat_id='-1001370053492',
                                  text=message,
                                  parse_mode='HTML')
         last_message_time = datetime.datetime.now()
     time.sleep(config.sleep_time)
 
+async def send_start_message(bot):
+    async with bot:
+        await bot.send_message(text='Script started.', chat_id='-1001802599929')
 
 def main():
     global last_message_time
-    winter = False
+    global run_time
+    winter = True
 
     try:
         bot = telegram.Bot(config.telegram_token)
-
+        asyncio.run(send_start_message(bot))
         last_message_time = datetime.datetime.now() - datetime.timedelta(hours=5)
         epd = epd7in5_V2.EPD()
         
@@ -228,22 +241,22 @@ def main():
         epd.sleep()
         
         while True:
-            repeated_job(bot,epd,winter)
+            asyncio.run(repeated_job(bot,epd,winter))
 
     except KeyboardInterrupt:
         app_log.info("ctrl + c:")
         epd7in5_V2.epdconfig.module_exit()
         exit()
-
+    
+    except Exception as e:
+        async def send_error(bot, error):
+            async with bot:
+                await bot.send_message(text =f'{error}', chat_id='-1001802599929')
+        asyncio.run(send_error(bot, e))
 
 if __name__ == "__main__":
-    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                        level=logging.INFO,
-                        handlers=[
-                            logging.FileHandler("std.log"),
-                            logging.StreamHandler()])
     log_formatter = logging.Formatter('%(asctime)s %(levelname)s %(funcName)s(%(lineno)d) %(message)s')
-    logFile = 'std.log'
+    logFile = os.path.join(absolute_path, 'std.log')
     my_handler = RotatingFileHandler(logFile, mode='a', maxBytes=5*1024*1024, 
                                     backupCount=2, encoding=None, delay=False)
     my_handler.setFormatter(log_formatter)
@@ -252,8 +265,5 @@ if __name__ == "__main__":
     app_log = logging.getLogger('root')
     app_log.setLevel(logging.INFO)
     app_log.addHandler(my_handler)
-
-    while True:
-        app_log.info("data")
 
     main()
