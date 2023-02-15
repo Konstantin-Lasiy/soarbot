@@ -242,12 +242,13 @@ def update_image(epd, station_data, good_conditions):
     draw_station_data(draw, station_data, 110, table_y_position+2 + y_displacement, screen_w - 10, 0 + 10)
     draw.line((100, table_y_position+29+ y_displacement, 371, table_y_position+29+ y_displacement), fill='black', width=3) # horizontal
     epd.display(epd.getbuffer(image))
-    app_log.info(f'Update Image done. Setting epd to sleep')
+    # app_log.info(f'Update Image done. Setting epd to sleep')
     epd.sleep()
 
 
 async def repeated_job(bot, epd, winter):
     global last_message_time
+    global last_image_update
     lookback_minutes = 120
     time_since_last_message = datetime.datetime.now() - last_message_time
     station_data = get_station_data(lookback_minutes)
@@ -256,7 +257,9 @@ async def repeated_job(bot, epd, winter):
         time.sleep(60)
         return
     all_parameters_met = check_all_conditions(station_data, winter)
-    update_image(epd, station_data, all_parameters_met)
+    if station_data['date_time'].iloc[-1] > last_image_update:
+        update_image(epd, station_data, all_parameters_met)
+        last_image_update = station_data['date_time'].iloc[-1]
     #if True: #morning
         #play_sound()
         #TODO add Alexa push alert
@@ -267,9 +270,9 @@ async def repeated_job(bot, epd, winter):
                                  text=message,
                                  parse_mode='HTML')
         last_message_time = datetime.datetime.now()
-    app_log.info('Job ran, going to sleep')
+    #app_log.info('Job ran, going to sleep')
     time.sleep(config.sleep_time)
-    app_log.info('Woke up.')
+    #app_log.info('Woke up.')
 
 async def send_start_message(bot):
     async with bot:
@@ -283,6 +286,7 @@ async def send_error(bot, error):
 
 async def main():
     global last_message_time
+    global last_image_update
     global run_time
     winter = True
 
@@ -290,7 +294,8 @@ async def main():
         bot = telegram.Bot(config.telegram_token)
         async with bot:
             await send_start_message(bot)
-        last_message_time = datetime.datetime.now() - datetime.timedelta(hours=5)
+        last_image_update = last_message_time = datetime.datetime.now() - datetime.timedelta(hours=5)
+
         epd = epd7in5_V2.EPD()
         
         app_log.info('starting init')
