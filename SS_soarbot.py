@@ -19,13 +19,17 @@ import sys
 from async_timeout import timeout
 
 absolute_path = os.path.dirname(__file__)
+
+
 def handle_exception(exc_type, exc_value, exc_traceback):
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
     app_log.critical("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
 
+
 sys.excepthook = handle_exception
+
 
 def get_station_data(lookback_minutes=30):
     request_string = 'https://api.synopticdata.com/v2/stations/timeseries?' \
@@ -100,7 +104,7 @@ def check_midday():
 
 
 def check_all_conditions(station_data, winter):
-    wind_is_acceptable,_,_ = check_wind(station_data)
+    wind_is_acceptable, _, _ = check_wind(station_data)
     is_raining = check_rain(station_data)
     strong_gusts = check_for_strong_gusts(station_data)
     daytime = check_daytime()
@@ -157,13 +161,12 @@ def format_message(station_data, rows=6, html=True):
         message = "       Speed   Dir \n"
     for index, row in station_data.tail(rows).iloc[::-1].iterrows():
         message += '{:%H:%M} {:>3.0f}g{:<2.0f}   {:<5} \n'.format(
-            row['date_time'], 
-            row["wind_speed_set_1"],row["wind_gust_set_1"],
+            row['date_time'],
+            row["wind_speed_set_1"], row["wind_gust_set_1"],
             row['wind_cardinal_direction_set_1d'])
     if html:
         message += '</pre>'
     return message
-
 
 
 def draw_station_data(draw, station_data, left, top, right, bottom):
@@ -171,24 +174,26 @@ def draw_station_data(draw, station_data, left, top, right, bottom):
     font18 = ImageFont.truetype(os.path.join(absolute_path, './fonts/mononoki-Regular.ttf'), 25)
     draw.text((left, top), text, font=font18)
 
+
 def draw_status(image, status, x, y):
     if status:
         checkmark = Image.open(os.path.join(absolute_path, "images/ok.bmp"))
 
-        image.paste(checkmark, (x,y))
+        image.paste(checkmark, (x, y))
     else:
         cross = Image.open(os.path.join(absolute_path, "images/cross.bmp"))
-        image.paste(cross,(x,y))
+        image.paste(cross, (x, y))
 
-def draw_speed_chart(image,station_data, x, y):
+
+def draw_speed_chart(image, station_data, x, y):
     import matplotlib.dates as mdates
     myFmt = mdates.DateFormatter('%H:%M')
     plot_data = station_data.set_index('date_time')['wind_speed_set_1'].tail(10)
-    plt.rcParams["figure.figsize"] = (3.5,2)
-    fig, ax = plt.subplots(1,1)
+    plt.rcParams["figure.figsize"] = (3.5, 2)
+    fig, ax = plt.subplots(1, 1)
     plt.plot(plot_data)
     ax.xaxis.set_major_formatter(myFmt)
-    xlocator = mdates.MinuteLocator(byminute=[0,10,20,30,40,50], interval = 1)
+    xlocator = mdates.MinuteLocator(byminute=[0, 10, 20, 30, 40, 50], interval=1)
     ax.xaxis.set_major_locator(xlocator)
     img_buf = io.BytesIO()
     plt.savefig(img_buf, format='png')
@@ -197,31 +202,31 @@ def draw_speed_chart(image,station_data, x, y):
     img_buf.close()
     plt.close(fig)
 
-def draw_statuses(draw,image,station_data,y_displacement):
-    _,wind_dir_is_acceptable,wind_speed_is_acceptable = check_wind(station_data)
+
+def draw_statuses(draw, image, station_data, y_displacement):
+    _, wind_dir_is_acceptable, wind_speed_is_acceptable = check_wind(station_data)
     is_raining = check_rain(station_data)
     strong_gusts = check_for_strong_gusts(station_data)
     font18 = ImageFont.truetype(os.path.join(absolute_path, './fonts/mononoki-Regular.ttf'), 18)
-    draw.text((120,600+y_displacement), 'SPEED', font=font18)
-    draw.text((110,700+y_displacement), 'DIRECTION', font=font18)
-    draw.text((286,600+y_displacement), 'GUSTS', font=font18)
-    draw.text((290,700+y_displacement), 'RAIN', font=font18)
-    draw_status(image, wind_speed_is_acceptable,120,620+y_displacement)
-    draw_status(image, wind_dir_is_acceptable,120,720+y_displacement)
-    draw_status(image, not(strong_gusts),285,620+y_displacement)
-    draw_status(image, not(is_raining),285,720+y_displacement)
+    draw.text((120, 600 + y_displacement), 'SPEED', font=font18)
+    draw.text((110, 700 + y_displacement), 'DIRECTION', font=font18)
+    draw.text((286, 600 + y_displacement), 'GUSTS', font=font18)
+    draw.text((290, 700 + y_displacement), 'RAIN', font=font18)
+    draw_status(image, wind_speed_is_acceptable, 120, 620 + y_displacement)
+    draw_status(image, wind_dir_is_acceptable, 120, 720 + y_displacement)
+    draw_status(image, not (strong_gusts), 285, 620 + y_displacement)
+    draw_status(image, not (is_raining), 285, 720 + y_displacement)
     line1_x = 230
-    line1_y = (600+y_displacement,780+y_displacement)
-    draw.line((line1_x, line1_y[0]) + (line1_x,line1_y[1]), fill='black', width = 5) # l
+    line1_y = (600 + y_displacement, 780 + y_displacement)
+    draw.line((line1_x, line1_y[0]) + (line1_x, line1_y[1]), fill='black', width=5)  # l
     line2_x = (100, 350)
-    line2_y = 685 +y_displacement
-    draw.line((line2_x[0], line2_y) + (line2_x[1],line2_y), fill='black', width = 5) # l
+    line2_y = 685 + y_displacement
+    draw.line((line2_x[0], line2_y) + (line2_x[1], line2_y), fill='black', width=5)  # l
 
-    
-    
+
 def update_image(epd, station_data, good_conditions):
-    #app_log.info('In update_image')
-    #app_log.info('starting init')
+    # app_log.info('In update_image')
+    # app_log.info('starting init')
     try:
         epd.init()
         # app_log.info(f'Init done')
@@ -230,17 +235,19 @@ def update_image(epd, station_data, good_conditions):
     screen_w = epd.width
     screen_h = epd.height
     image = Image.new('1', (screen_h, screen_w), 255)
-    #app_log.info('Drawing image')
-    
+    # app_log.info('Drawing image')
+
     draw = ImageDraw.Draw(image)
     y_displacement = 40
-    draw_speed_chart(image,station_data, 56,310+y_displacement)
+    draw_speed_chart(image, station_data, 56, 310 + y_displacement)
 
     table_y_position = 26
-    draw.rounded_rectangle([100,table_y_position+y_displacement, 371, table_y_position+295+y_displacement], radius=0, fill=None, outline='black', width=3)
-    draw_statuses(draw,image,station_data, -40)
-    draw_station_data(draw, station_data, 110, table_y_position+2 + y_displacement, screen_w - 10, 0 + 10)
-    draw.line((100, table_y_position+29+ y_displacement, 371, table_y_position+29+ y_displacement), fill='black', width=3) # horizontal
+    draw.rounded_rectangle([100, table_y_position + y_displacement, 371, table_y_position + 295 + y_displacement],
+                           radius=0, fill=None, outline='black', width=3)
+    draw_statuses(draw, image, station_data, -40)
+    draw_station_data(draw, station_data, 110, table_y_position + 2 + y_displacement, screen_w - 10, 0 + 10)
+    draw.line((100, table_y_position + 29 + y_displacement, 371, table_y_position + 29 + y_displacement), fill='black',
+              width=3)  # horizontal
     epd.display(epd.getbuffer(image))
     # app_log.info(f'Update Image done. Setting epd to sleep')
     epd.sleep()
@@ -252,7 +259,7 @@ async def repeated_job(bot, epd, winter):
     lookback_minutes = 120
     time_since_last_message = datetime.datetime.now() - last_message_time
     station_data = get_station_data(lookback_minutes)
-    if len(station_data)== 0:
+    if len(station_data) == 0:
         app_log.error('station data empty... waiting a minute to retry')
         time.sleep(60)
         return
@@ -260,28 +267,29 @@ async def repeated_job(bot, epd, winter):
     if station_data['date_time'].iloc[-1] > last_image_update:
         update_image(epd, station_data, all_parameters_met)
         last_image_update = station_data['date_time'].iloc[-1]
-    #if True: #morning
-        #play_sound()
-        #TODO add Alexa push alert
+    # if True: #morning
+    # play_sound()
+    # TODO add Alexa push alert
     if all_parameters_met and time_since_last_message > datetime.timedelta(hours=4):
         message = format_message(station_data)
         async with bot:
             await bot.send_message(chat_id='-1001370053492',
-                                 text=message,
-                                 parse_mode='HTML')
+                                   text=message,
+                                   parse_mode='HTML')
         last_message_time = datetime.datetime.now()
-    #app_log.info('Job ran, going to sleep')
+    # app_log.info('Job ran, going to sleep')
     time.sleep(config.sleep_time)
-    #app_log.info('Woke up.')
+    # app_log.info('Woke up.')
+
 
 async def send_start_message(bot):
     async with bot:
         await bot.send_message(text='Script started.', chat_id='-1001802599929')
 
+
 async def send_error(bot, error):
     async with bot:
-        await bot.send_message(text =f'{error}', chat_id='-1001802599929')
-
+        await bot.send_message(text=f'{error}', chat_id='-1001802599929')
 
 
 async def main():
@@ -297,25 +305,25 @@ async def main():
         last_image_update = last_message_time = datetime.datetime.now() - datetime.timedelta(hours=5)
 
         epd = epd7in5_V2.EPD()
-        
+
         app_log.info('starting init')
         try:
             epd.init()
         except:
             print('epd.init() failed')
 
-        #app_log.info('starting Clear')
+        # app_log.info('starting Clear')
         try:
             epd.Clear()
         except:
             print("epd.Clear failed")
-        #app_log.info('done with Clear')
+        # app_log.info('done with Clear')
         epd.sleep()
-        
+
         while True:
             try:
                 async with timeout(120):
-                    await repeated_job(bot,epd,winter)
+                    await repeated_job(bot, epd, winter)
             except Exception as e:
                 app_log.info(f'Exception {e} occured, trying to send to Telegram.')
                 try:
@@ -328,16 +336,17 @@ async def main():
         app_log.info("ctrl + c:")
         epd7in5_V2.epdconfig.module_exit()
         exit()
-    
+
     except Exception as e:
         app_log.info(f'Exception {e} occured')
         await send_error(bot, e)
 
+
 if __name__ == "__main__":
     log_formatter = logging.Formatter('%(asctime)s %(levelname)s %(funcName)s(%(lineno)d) %(message)s')
     logFile = os.path.join(absolute_path, 'std.log')
-    my_handler = RotatingFileHandler(logFile, mode='a', maxBytes=5*1024*1024, 
-                                    backupCount=2, encoding=None, delay=False)
+    my_handler = RotatingFileHandler(logFile, mode='a', maxBytes=5 * 1024 * 1024,
+                                     backupCount=2, encoding=None, delay=False)
     my_handler.setFormatter(log_formatter)
     my_handler.setLevel(logging.INFO)
 
