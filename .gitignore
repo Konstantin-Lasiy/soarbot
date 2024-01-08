@@ -138,3 +138,4 @@ dmypy.json
 .idea/soarbot.iml
 .idea/modules.xml
 .idea/misc.xml
+/.idea/.name
