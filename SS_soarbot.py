@@ -32,13 +32,13 @@ sys.excepthook = handle_exception
 
 
 def get_station_data(lookback_minutes=30):
-    request_string = 'https://api.synopticdata.com/v2/stations/timeseries?' \
-                     'token={token}&' \
-                     'recent={lookback_minutes}&' \
-                     'stid=FPS&' \
-                     'state=ut&' \
-                     'units=english&' \
-                     'obtimezone=LOCAL' \
+    request_string = "https://api.synopticdata.com/v2/stations/timeseries?" \
+                     "token={token}&" \
+                     "recent={lookback_minutes}&" \
+                     "stid=FPS&" \
+                     "state=ut&" \
+                     "units=english&" \
+                     "obtimezone=LOCAL" \
         .format(token=config.token,
                 lookback_minutes=lookback_minutes)
 
@@ -115,12 +115,12 @@ def check_all_conditions(station_data, winter):
     else:
         midday = False
     all_conditions_are_right = wind_is_acceptable and not is_raining and not strong_gusts and daytime and not midday
-    # app_log.info('wind: {wind}'.format(wind=wind_is_acceptable))
-    # app_log.info('rain: {rain}'.format(rain=is_raining))
-    # app_log.info('gusts: {gusts}'.format(gusts=strong_gusts))
-    # app_log.info('daytime: {daytime}'.format(daytime=daytime))
-    # app_log.info('midday: {midday}'.format(midday=midday))
-    # app_log.info('all_conditions: {all_conditions}'.format(all_conditions=all_conditions_are_right))
+    # app_log.info('wind: {wind}'.format(wind=wind_is_acceptable)
+    # app_log.info('rain: {rain}'.format(rain=is_raining)
+    # app_log.info('gusts: {gusts}'.format(gusts=strong_gusts)
+    # app_log.info('daytime: {daytime}'.format(daytime=daytime)
+    # app_log.info('midday: {midday}'.format(midday=midday)
+    # app_log.info('all_conditions: {all_conditions}'.format(all_conditions=all_conditions_are_right)
     return all_conditions_are_right
 
 
@@ -186,15 +186,15 @@ def draw_status(image, status, x, y):
 
 
 def draw_speed_chart(image, station_data, x, y):
-    import matplotlib.dates as mdates
-    myFmt = mdates.DateFormatter('%H:%M')
+    import matplotlib.dates as m_dates
+    myFmt = m_dates.DateFormatter('%H:%M')
     plot_data = station_data.set_index('date_time')['wind_speed_set_1'].tail(10)
     plt.rcParams["figure.figsize"] = (3.5, 2)
     fig, ax = plt.subplots(1, 1)
     plt.plot(plot_data)
     ax.xaxis.set_major_formatter(myFmt)
-    xlocator = mdates.MinuteLocator(byminute=[0, 10, 20, 30, 40, 50], interval=1)
-    ax.xaxis.set_major_locator(xlocator)
+    x_locator = m_dates.MinuteLocator(byminute=[0, 10, 20, 30, 40, 50], interval=1)
+    ax.xaxis.set_major_locator(x_locator)
     img_buf = io.BytesIO()
     plt.savefig(img_buf, format='png')
     im = Image.open(img_buf)
@@ -214,8 +214,8 @@ def draw_statuses(draw, image, station_data, y_displacement):
     draw.text((290, 700 + y_displacement), 'RAIN', font=font18)
     draw_status(image, wind_speed_is_acceptable, 120, 620 + y_displacement)
     draw_status(image, wind_dir_is_acceptable, 120, 720 + y_displacement)
-    draw_status(image, not (strong_gusts), 285, 620 + y_displacement)
-    draw_status(image, not (is_raining), 285, 720 + y_displacement)
+    draw_status(image, not strong_gusts, 285, 620 + y_displacement)
+    draw_status(image, not is_raining, 285, 720 + y_displacement)
     line1_x = 230
     line1_y = (600 + y_displacement, 780 + y_displacement)
     draw.line((line1_x, line1_y[0]) + (line1_x, line1_y[1]), fill='black', width=5)  # l
