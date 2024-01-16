@@ -1,22 +1,26 @@
-import requests
-import time
-import pandas as pd
-import json
-import os
-import config
-import logging
-from logging.handlers import RotatingFileHandler
-import telegram
 import datetime
-from astral.sun import sun
-from astral import LocationInfo
-from PIL import Image, ImageDraw, ImageFont
-import asyncio
 import io
-import matplotlib.pyplot as plt
-import epd7in5_V2
+import json
+import logging
+import multiprocessing as mp
+import os
 import sys
-from async_timeout import timeout
+import time
+from logging.handlers import RotatingFileHandler
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import requests
+from PIL import Image, ImageDraw, ImageFont
+from astral import LocationInfo
+from astral.sun import sun
+
+import config
+
+try:
+    import epd7in5_V2
+except Exception as e:
+    print("Can't Import epd package")
 
 absolute_path = os.path.dirname(__file__)
 
@@ -29,6 +33,18 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 
 
 sys.excepthook = handle_exception
+
+
+def send_to_telegram(text, chat_id):
+    api_token = config.telegram_token
+    chat_id = chat_id
+    api_url = f'https://api.telegram.org/bot{api_token}/sendMessage?parse_mode=html'
+
+    try:
+        response = requests.post(api_url, json={'chat_id': chat_id, 'text': text})
+        print(response.text)
+    except Exception as e:
+        print(e)
 
 
 def get_station_data(lookback_minutes=30):
@@ -124,35 +140,6 @@ def check_all_conditions(station_data, winter):
     return all_conditions_are_right
 
 
-def play_sound():
-    relative_path = 'Alarm Alert Effect-SoundBible.com-462520910.mp3'
-    path_to_alarm = os.path.join(absolute_path, relative_path)
-    command = f"omxplayer {path_to_alarm} -g 100"
-    os.system(command)
-
-
-def latest_readings(bot, job):
-    station_data = get_station_data()
-    message = ''
-    order = [5, 2, 4, 1, 3, 0]  # switches the order so that the columns are lined up
-    # in the notification preview on iPhone
-    for i in order:
-        row = station_data.tail(6).iloc[i]
-        message += ('{:%H:%M} - {}{:1.1f} {} - {} |||\n'.format(
-            row['date_time'], " " * 0,
-            row['wind_speed_set_1'], " " * 0,
-            row['wind_cardinal_direction_set_1d']))
-
-    message += "TIME  |  WIND SPEED | WIND DIRECTION \n"
-    for index, row in station_data.tail(6).iterrows():
-        message += ('{:%H:%M} - {}{:1.1f} {} - {} |||\n'.format(
-            row['date_time'], " " * 0,
-            row['wind_speed_set_1'], " " * 0,
-            row['wind_cardinal_direction_set_1d']))
-    bot.send_message(chat_id='-1001370053492',
-                     text=message)
-
-
 def format_message(station_data, rows=6, html=True):
     station_data['wind_cardinal_direction_set_1d'].fillna('-', inplace=True)
     if html:
@@ -224,7 +211,7 @@ def draw_statuses(draw, image, station_data, y_displacement):
     draw.line((line2_x[0], line2_y) + (line2_x[1], line2_y), fill='black', width=5)  # l
 
 
-def update_image(epd, station_data, good_conditions):
+def update_image(epd, station_data):
     # app_log.info('In update_image')
     # app_log.info('starting init')
     try:
@@ -253,9 +240,7 @@ def update_image(epd, station_data, good_conditions):
     epd.sleep()
 
 
-async def repeated_job(bot, epd, winter):
-    global last_message_time
-    global last_image_update
+def repeated_job(epd, winter, chat_id, last_message_time, last_image_update, output):
     lookback_minutes = 120
     time_since_last_message = datetime.datetime.now() - last_message_time
     station_data = get_station_data(lookback_minutes)
@@ -265,81 +250,89 @@ async def repeated_job(bot, epd, winter):
         return
     all_parameters_met = check_all_conditions(station_data, winter)
     if station_data['date_time'].iloc[-1] > last_image_update:
-        update_image(epd, station_data, all_parameters_met)
+        update_image(epd, station_data)
         last_image_update = station_data['date_time'].iloc[-1]
-    # if True: #morning
-    # play_sound()
-    # TODO add Alexa push alert
+
     if all_parameters_met and time_since_last_message > datetime.timedelta(hours=4):
         message = format_message(station_data)
-        async with bot:
-            await bot.send_message(chat_id='-1001370053492',
-                                   text=message,
-                                   parse_mode='HTML')
+        send_to_telegram(chat_id=chat_id,
+                         text=message)
         last_message_time = datetime.datetime.now()
     # app_log.info('Job ran, going to sleep')
     time.sleep(config.sleep_time)
     # app_log.info('Woke up.')
+    output.put(last_image_update, last_message_time)
+    return last_image_update, last_message_time
 
 
-async def send_start_message(bot):
-    async with bot:
-        await bot.send_message(text='Script started.', chat_id='-1001802599929')
+def send_start_message():
+    send_to_telegram(text='Script started.', chat_id=config.test_chat_id)
 
 
-async def send_error(bot, error):
-    async with bot:
-        await bot.send_message(text=f'{error}', chat_id='-1001802599929')
+def send_error(error):
+    send_to_telegram(text=f'{error}', chat_id=config.test_chat_id)
 
 
-async def main():
-    global last_message_time
-    global last_image_update
-    global run_time
-    winter = True
-
+def initiate_screen(epd):
+    app_log.info('starting init')
     try:
-        bot = telegram.Bot(config.telegram_token)
-        async with bot:
-            await send_start_message(bot)
+        epd.init()
+    except:
+        print('epd.init() failed')
+    app_log.info('starting Clear')
+    try:
+        epd.Clear()
+    except:
+        print("epd.Clear failed")
+    # app_log.info('done with Clear')
+    epd.sleep()
+
+
+def main():
+    debug = True
+    running_with_image = False
+    chat_id = config.test_chat_id if debug else config.group_channel_chat_id
+    winter = True
+    # TODO replace winter with dates
+    try:
+        send_start_message()  # TODO: rewrite send_start_message
         last_image_update = last_message_time = datetime.datetime.now() - datetime.timedelta(hours=5)
-
-        epd = epd7in5_V2.EPD()
-
-        app_log.info('starting init')
-        try:
-            epd.init()
-        except:
-            print('epd.init() failed')
-
-        # app_log.info('starting Clear')
-        try:
-            epd.Clear()
-        except:
-            print("epd.Clear failed")
-        # app_log.info('done with Clear')
-        epd.sleep()
-
+        # TODO: set the line above to get the last message from Telegram
+        if running_with_image:
+            epd = epd7in5_V2.EPD()
+            initiate_screen(epd)
+        else:
+            epd = False
         while True:
             try:
-                async with timeout(120):
-                    await repeated_job(bot, epd, winter)
+                timeout_length = 120
+                output = mp.Queue()
+                process = mp.Process(target=repeated_job, args=(epd, winter, chat_id,
+                                                                last_message_time, last_image_update, output))
+                process.start()
+                process.join(timeout=timeout_length)
+                if process.is_alive():
+                    process.terminate()
+                    process.join()
+                    error_info = f"Timeout error. repeated_job didn't complete in {timeout_length}s"
+                    app_log.info(f'{error_info}, trying to send to Telegram.')
+                    send_error(error_info)
             except Exception as e:
                 app_log.info(f'Exception {e} occured, trying to send to Telegram.')
                 try:
-                    await send_error(bot, e)
+                    send_error(e)
                 except Exception as e:
                     app_log.critical(f'Exceptiong {e} occured when trying to send error to bot')
                 time.sleep(120)
 
     except KeyboardInterrupt:
         app_log.info("ctrl + c:")
-        epd7in5_V2.epdconfig.module_exit()
+        # epd7in5_V2.epdconfig.module_exit()
         exit()
 
     except Exception as e:
         app_log.info(f'Exception {e} occured')
-        await send_error(bot, e)
+    send_error(e)
 
 
 if __name__ == "__main__":
@@ -349,9 +342,8 @@ if __name__ == "__main__":
                                      backupCount=2, encoding=None, delay=False)
     my_handler.setFormatter(log_formatter)
     my_handler.setLevel(logging.INFO)
-
     app_log = logging.getLogger('root')
     app_log.setLevel(logging.INFO)
     app_log.addHandler(my_handler)
 
-    asyncio.run(main())
+    main()
