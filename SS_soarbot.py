@@ -62,7 +62,7 @@ def get_station_data(lookback_minutes=30):
     wdata = json.loads(page.text)
     latest_recordings_df = pd.DataFrame(wdata['STATION'][0]['OBSERVATIONS'])
     latest_recordings_df['date_time'] = pd.to_datetime(latest_recordings_df.date_time.str[:-5])
-    latest_recordings_df['wind_speed_set_1'] *= 1.15078
+    latest_recordings_df['wind_speed_set_1'] *= 1.15078  # kph to mph
     latest_recordings_df['wind_gust_set_1'] *= 1.15078
     return latest_recordings_df
 
@@ -318,11 +318,11 @@ def main():
                     app_log.info(f'{error_info}, trying to send to Telegram.')
                     send_error(error_info)
             except Exception as e:
-                app_log.info(f'Exception {e} occured, trying to send to Telegram.')
+                app_log.info(f'Exception {e} occurred, trying to send to Telegram.')
                 try:
                     send_error(e)
                 except Exception as e:
-                    app_log.critical(f'Exceptiong {e} occured when trying to send error to bot')
+                    app_log.critical(f'Exception {e} occurred when trying to send error to bot')
                 time.sleep(120)
 
     except KeyboardInterrupt:
@@ -331,7 +331,7 @@ def main():
         exit()
 
     except Exception as e:
-        app_log.info(f'Exception {e} occured')
+        app_log.info(f'Exception {e} occurred')
     send_error(e)
 
 
