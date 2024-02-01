@@ -1,6 +1,6 @@
-- [?]rewrite the bot send everywhere
-- get rid of global variables
-- instantiate the first last_message time to be read from the chat
-- Test
-- Rewrite winter to be programmatic
-- Separate out the image stuff for the reader.
+- [X]rewrite the bot send everywhere
+- [X] get rid of global variables
+- [X] Test
+- [X] Run it in AWS
+- [X] Rewrite winter to be programmatic
+- [ ] Separate out the image stuff for the reader.
