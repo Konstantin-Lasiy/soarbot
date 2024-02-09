@@ -9,6 +9,22 @@ from astral.sun import sun
 from configs import config
 
 
+def format_message(station_data, rows=6, html=True):
+    station_data['wind_cardinal_direction_set_1d'].fillna('-', inplace=True)
+    if html:
+        message = "<pre>"  # ""TIME  |  WIND SPEEDgGUST | WIND DIRECTION \n"
+    else:
+        message = "       Speed   Dir \n"
+    for index, row in station_data.tail(rows).iloc[::-1].iterrows():
+        message += '{:%H:%M} {:>3.0f}g{:<2.0f}   {:<5} \n'.format(
+            row['date_time'],
+            row["wind_speed_set_1"], row["wind_gust_set_1"],
+            row['wind_cardinal_direction_set_1d'])
+    if html:
+        message += '</pre>'
+    return message
+
+
 def get_station_data(lookback_minutes=30):
     request_string = "https://api.synopticdata.com/v2/stations/timeseries?" \
                      "token={token}&" \
