@@ -29,6 +29,7 @@
 
 
 import logging
+
 import epdconfig
 
 # Display resolution

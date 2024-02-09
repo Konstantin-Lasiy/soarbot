@@ -27,8 +27,8 @@
 # THE SOFTWARE.
 #
 
-import os
 import logging
+import os
 import sys
 import time
 
