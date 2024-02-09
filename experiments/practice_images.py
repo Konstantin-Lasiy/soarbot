@@ -6,7 +6,7 @@ import pandas as pd
 import requests
 from PIL import Image, ImageDraw, ImageFont
 
-import config
+from configs import config
 
 screen_h = 800
 screen_w = 480

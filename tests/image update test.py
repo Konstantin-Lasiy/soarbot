@@ -1,19 +1,10 @@
-import requests
-import pandas as pd
-import json
-import os
-import smtplib, ssl
-import config
-import logging
-import astral
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, CallbackContext
 import datetime
-from astral.sun import sun
-from astral import LocationInfo
-from PIL import Image, ImageDraw, ImageFont
-import epd7in5_V2
+import logging
 
+from PIL import Image, ImageDraw, ImageFont
+from telegram.ext import Updater, CallbackContext
+
+from configs import config, epd7in5_V2
 
 
 def draw_station_data(draw, number, left, top, right, bottom):

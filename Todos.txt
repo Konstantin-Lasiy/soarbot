@@ -1,6 +1,0 @@
-- [X]rewrite the bot send everywhere
-- [X] get rid of global variables
-- [X] Test
-- [X] Run it in AWS
-- [X] Rewrite winter to be programmatic
-- [ ] Separate out the image stuff for the reader.
