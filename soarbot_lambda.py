@@ -1,7 +1,6 @@
 import boto3
 import pytz
 
-from configs import config
 from utils.weather_utils import *
 
 
@@ -37,21 +36,6 @@ def update_last_message_time():
     update_item('soarbot_variables', 'last_message_time', 'value', now_str)
 
 
-def repeated_job(winter, chat_id, last_message_time):
-    lookback_minutes = 120
-    time_since_last_message = datetime.datetime.now(pytz.timezone('America/Denver')) - last_message_time
-    station_data = get_station_data(lookback_minutes)
-    if len(station_data) == 0:
-        # app_log.error('station data empty... waiting a minute to retry')
-        return
-    all_parameters_met = check_all_conditions(station_data, winter)
-    if all_parameters_met and time_since_last_message > datetime.timedelta(hours=4):
-        message = format_message(station_data)
-        send_to_telegram(chat_id=chat_id,
-                         text=message)
-        update_last_message_time()
-
-
 def get_last_message_time() -> datetime.date:
     dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
     table = dynamodb.Table('soarbot_variables')
@@ -85,11 +69,22 @@ def update_item(table_name, key, attribute_name, new_val):
 
 def lambda_handler(event, context):
     debug = False
+    lookback_minutes = 120
     chat_id = config.test_chat_id if debug else config.group_channel_chat_id
     winter = check_winter()
-    last_message_time = get_last_message_time()
     try:
-        repeated_job(winter, chat_id, last_message_time)
+        last_message_time = get_last_message_time()
+        time_since_last_message = datetime.datetime.now(pytz.timezone('America/Denver')) - last_message_time
+        station_data = get_station_data(lookback_minutes)
+        if len(station_data) == 0:
+            # app_log.error('station data empty... waiting a minute to retry')
+            return
+        all_parameters_met = check_all_conditions(station_data, winter)
+        if all_parameters_met and time_since_last_message > datetime.timedelta(hours=4):
+            message = format_message(station_data)
+            send_to_telegram(chat_id=chat_id,
+                             text=message)
+            update_last_message_time()
     except Exception as e:
         # app_log.info(f"Exception {e} occurred, trying to send to Telegram.")
         try:
