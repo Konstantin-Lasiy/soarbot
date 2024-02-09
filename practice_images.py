@@ -1,13 +1,16 @@
 #Import required libraries
 
-import config
-import requests
-import pandas as pd
 import json
+
+import pandas as pd
+import requests
 from PIL import Image, ImageDraw, ImageFont
+
+import config
 
 screen_h = 800
 screen_w = 480
+
 
 def format_message(station_data, rows=6, html=True):
     if html:
