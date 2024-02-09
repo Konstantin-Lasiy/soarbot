@@ -135,24 +135,6 @@ def format_message(station_data, rows=6, html=True):
     return message
 
 
-def update_item(table_name, key, attribute_name, new_val):
-    dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table(table_name)
-    response = table.update_item(
-        Key={
-            'variable_name': key
-        },
-        UpdateExpression='SET #attr = :val',
-        ExpressionAttributeNames={
-            '#attr': attribute_name
-        },
-        ExpressionAttributeValues={
-            ':val': new_val
-        }
-    )
-    return response['ResponseMetadata']['HTTPStatusCode'] == 200
-
-
 def update_last_message_time():
     now_str = datetime.datetime.now(pytz.timezone('America/Denver')).strftime("%m/%d/%Y, %H:%M:%S")
     update_item('soarbot_variables', 'last_message_time', 'value', now_str)
