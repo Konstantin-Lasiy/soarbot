@@ -4,9 +4,7 @@ import time
 from logging.handlers import RotatingFileHandler
 from queue import Empty
 
-import requests
-
-from configs import config, epd7in5_V2
+from configs import epd7in5_V2
 from utils.eink_utils import *
 from utils.weather_utils import *
 
