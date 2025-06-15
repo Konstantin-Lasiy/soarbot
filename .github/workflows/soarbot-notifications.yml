@@ -40,7 +40,7 @@ jobs:
         token: ${{ secrets.SYNOPTIC_API_TOKEN }}
         telegram_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       run: |
-        uv run python lambda_function_v2.py
+        uv run python lambda_function.py
     
     - name: Log execution results
       if: always()
