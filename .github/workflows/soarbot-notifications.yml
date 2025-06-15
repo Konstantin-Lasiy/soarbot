@@ -1,0 +1,50 @@
+name: SoarBot Multi-Station Notifications
+
+on:
+  schedule:
+    # Run every 15 minutes during daylight hours (6 AM to 8 PM Mountain Time)
+    # Adjusted for UTC: 13:00-02:00 (accounting for daylight saving time variations)
+    - cron: '*/15 13-23 * * *'  # 6 AM - 5 PM Mountain Time  
+    - cron: '*/15 0-2 * * *'    # 5 PM - 8 PM Mountain Time
+  
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  check-conditions:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Set up Python
+      run: uv python install 3.11
+    
+    - name: Install dependencies
+      run: |
+        uv sync --frozen
+    
+    - name: Run SoarBot Multi-Station Lambda Function
+      env:
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        ADMIN_TELEGRAM_CHAT_ID: ${{ secrets.ADMIN_TELEGRAM_CHAT_ID }}
+        SYNOPTIC_API_TOKEN: ${{ secrets.SYNOPTIC_API_TOKEN }}
+        # Legacy config support
+        token: ${{ secrets.SYNOPTIC_API_TOKEN }}
+        telegram_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      run: |
+        uv run python lambda_function_v2.py
+    
+    - name: Log execution results
+      if: always()
+      run: |
+        echo "🤖 SoarBot multi-station execution completed at $(date)"
+        echo "📊 Exit code: $?"
+        echo "✅ Check your Telegram for any notifications!"

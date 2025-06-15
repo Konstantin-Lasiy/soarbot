@@ -1,13 +1,68 @@
 import datetime
 import json
-
 import pandas as pd
 import requests
+import pytz
 from astral import LocationInfo
 from astral.sun import sun
-
 from configs import config
 
+def get_station_data_by_id(station_id: str, lookback_minutes: int = 30, api_config: dict = None) -> pd.DataFrame:
+    """
+    Get weather data for any Synoptic station by station ID
+    
+    Args:
+        station_id: The station identifier (e.g., 'FPS', 'KSLC', 'KOGD')
+        lookback_minutes: How far back to look for data
+        api_config: Optional API configuration override
+    
+    Returns:
+        DataFrame with weather data
+    """
+    try:
+        # Use config token if available, otherwise from api_config
+        token = getattr(config, 'token', None) or (api_config or {}).get('token')
+        if not token:
+            raise ValueError("No API token available")
+        
+        request_string = (
+            f"https://api.synopticdata.com/v2/stations/timeseries?"
+            f"token={token}&recent={lookback_minutes}&stid={station_id}"
+            f"&state=ut&units=english&obtimezone=LOCAL"
+        )
+        
+        response = requests.get(request_string)
+        response.raise_for_status()
+        
+        wdata = json.loads(response.text)
+        
+        if not wdata.get("STATION") or len(wdata["STATION"]) == 0:
+            print(f"No data found for station {station_id}")
+            return pd.DataFrame()
+        
+        station_data = wdata["STATION"][0]
+        if not station_data.get("OBSERVATIONS"):
+            print(f"No observations found for station {station_id}")
+            return pd.DataFrame()
+        
+        latest_recordings_df = pd.DataFrame(station_data["OBSERVATIONS"])
+        
+        # Process datetime
+        latest_recordings_df["date_time"] = pd.to_datetime(
+            latest_recordings_df.date_time.str[:-5]
+        )
+        
+        # Convert wind speeds from kph to mph
+        if "wind_speed_set_1" in latest_recordings_df.columns:
+            latest_recordings_df["wind_speed_set_1"] *= 1.15078
+        if "wind_gust_set_1" in latest_recordings_df.columns:
+            latest_recordings_df["wind_gust_set_1"] *= 1.15078
+        
+        return latest_recordings_df
+        
+    except Exception as e:
+        print(f"Error getting data for station {station_id}: {e}")
+        return pd.DataFrame()
 
 def format_message(station_data, rows=6, html=True):
     station_data["wind_cardinal_direction_set_1d"].fillna("-", inplace=True)

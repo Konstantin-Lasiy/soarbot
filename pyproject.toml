@@ -1,0 +1,29 @@
+[project]
+name = "soarbot"
+version = "0.1.0"
+description = "SoarBot - Personalized soaring notifications"
+dependencies = [
+    "requests>=2.31.0",
+    "pandas>=2.1.4",
+    "matplotlib>=3.7.0",
+    "pillow>=10.0.0",
+    "astral>=3.2",
+    "pytz>=2023.3",
+    "supabase>=2.0.2",
+    "python-dotenv>=1.0.0",
+]
+requires-python = ">=3.9"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["utils", "configs"]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
