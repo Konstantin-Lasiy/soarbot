@@ -3,9 +3,29 @@ import json
 import pandas as pd
 import requests
 import pytz
+import os
 from astral import LocationInfo
 from astral.sun import sun
-from configs import config
+
+# Try to import config, fallback to environment variables
+try:
+    from configs import config
+except ImportError:
+    # Create a mock config object using environment variables
+    class Config:
+        @property
+        def token(self):
+            return os.getenv('SYNOPTIC_API_TOKEN') or os.getenv('token')
+        
+        @property
+        def telegram_token(self):
+            return os.getenv('TELEGRAM_BOT_TOKEN') or os.getenv('telegram_token')
+        
+        @property
+        def test_chat_id(self):
+            return os.getenv('test_chat_id', '-1001802599929')
+    
+    config = Config()
 
 def get_station_data_by_id(station_id: str, lookback_minutes: int = 30, api_config: dict = None) -> pd.DataFrame:
     """
