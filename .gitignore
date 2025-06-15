@@ -139,3 +139,4 @@ dmypy.json
 .idea/modules.xml
 .idea/misc.xml
 /.idea/.name
+.DS_Store
