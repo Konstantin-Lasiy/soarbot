@@ -249,7 +249,7 @@ def get_last_notification_time(user_id: str, station_uuid: str) -> datetime.date
             # If no previous notifications, return a time far in the past
             return datetime.datetime.now(pytz.UTC) - datetime.timedelta(days=365)
     except Exception as e:
-        logger.error(f"Failed to get last notification time for user {user_id}, station {station_id}: {e}")
+        logger.error(f"Failed to get last notification time for user {user_id}, station {station_uuid}: {e}")
         return datetime.datetime.now(pytz.UTC) - datetime.timedelta(days=365)
 
 def generate_personalized_message(user_data: Dict[str, Any], station_config: Dict[str, Any], station_data, conditions_result: Dict[str, Any]) -> str:
@@ -294,8 +294,6 @@ def generate_personalized_message(user_data: Dict[str, Any], station_config: Dic
 def log_notification(user_id: str, station_id: str, message_content: str, conditions_result: Dict[str, Any], station_data_dict: Dict[str, Any]) -> bool:
     """Log a sent notification to the database"""
     try:
-        # Convert numpy/pandas types to JSON-serializable types
-        import json
         
         def make_serializable(obj):
             """Convert numpy/pandas types to JSON serializable types"""
@@ -331,7 +329,21 @@ def log_notification(user_id: str, station_id: str, message_content: str, condit
 def log_run_metrics(metrics: Dict[str, Any]) -> bool:
     """Log run metrics to Supabase for monitoring"""
     try:
-        supabase.table("run_metrics").insert(metrics).execute()
+        def make_serializable(obj):
+            """Convert numpy/pandas types to JSON serializable types"""
+            if hasattr(obj, 'item'):  # numpy scalars
+                return obj.item()
+            elif hasattr(obj, 'tolist'):  # numpy arrays
+                return obj.tolist()
+            elif isinstance(obj, dict):
+                return {k: make_serializable(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [make_serializable(v) for v in obj]
+            else:
+                return obj
+        
+        clean_metrics = make_serializable(metrics)
+        supabase.table("run_metrics").insert(clean_metrics).execute()
         return True
     except Exception as e:
         logger.error(f"Failed to log run metrics: {e}")
