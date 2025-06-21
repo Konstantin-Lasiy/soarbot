@@ -331,7 +331,7 @@ def log_notification(user_id: str, station_id: str, message_content: str, condit
 def log_run_metrics(metrics: Dict[str, Any]) -> bool:
     """Log run metrics to Supabase for monitoring"""
     try:
-        supabase.schema("logging").table("run_metrics").insert(metrics).execute()
+        supabase.table("run_metrics").insert(metrics).execute()
         return True
     except Exception as e:
         logger.error(f"Failed to log run metrics: {e}")
