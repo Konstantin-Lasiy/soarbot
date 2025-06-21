@@ -358,7 +358,8 @@ def lambda_handler(event, context):
         'winter_mode': False,
         'runtime_seconds': 0,
         'success': True,
-        'error_message': None
+        'error_message': None,
+        'station_details': []
     }
     
     try:
@@ -399,33 +400,69 @@ def lambda_handler(event, context):
             
             # Check each station for this user (in priority order)
             for station_config in user_data["stations"]:
+                station_id = station_config["station_id"]
+                station_detail = {
+                    'user_id': user_id,
+                    'station_id': station_id,
+                    'station_name': station_config.get('station_name', station_id),
+                    'enabled': station_config["station_enabled"],
+                    'priority': station_config.get('priority', 0),
+                    'has_data': False,
+                    'api_error': None,
+                    'conditions_result': None,
+                    'cooldown_active': False,
+                    'notification_sent': False,
+                    'notification_error': None,
+                    'latest_weather_data': None
+                }
+                
                 if not station_config["station_enabled"]:
                     run_metrics['stations_disabled'] += 1
-                    logger.info(f"Skipping disabled station {station_config['station_id']} for user {user_id}")
+                    logger.info(f"Skipping disabled station {station_id} for user {user_id}")
+                    run_metrics['station_details'].append(station_detail)
                     continue
                 
                 run_metrics['stations_checked'] += 1
-                station_id = station_config["station_id"]
                 
                 # Get weather data for this station
                 try:
                     station_data = get_station_weather_data(station_config)
                 except Exception as e:
                     run_metrics['api_errors'] += 1
+                    station_detail['api_error'] = str(e)
                     logger.warning(f"API error for station {station_id}: {e}")
+                    run_metrics['station_details'].append(station_detail)
                     continue
                 
                 if station_data is None or len(station_data) == 0:
                     logger.warning(f"No weather data available for station {station_id}")
+                    run_metrics['station_details'].append(station_detail)
                     continue
                 
+                station_detail['has_data'] = True
                 run_metrics['stations_with_data'] += 1
+                
+                # Store latest weather data (last 3 readings)
+                if len(station_data) > 0:
+                    latest_data = station_data.tail(3)
+                    station_detail['latest_weather_data'] = {
+                        'wind_speeds': latest_data['wind_speed_set_1'].tolist(),
+                        'wind_directions': latest_data['wind_direction_set_1'].tolist(),
+                        'wind_gusts': latest_data['wind_gust_set_1'].tolist(),
+                        'precipitation': latest_data['precip_accum_five_minute_set_1'].tolist(),
+                        'timestamps': [dt.isoformat() for dt in latest_data['date_time'].tolist()]
+                    }
                 
                 # Check conditions for this station
                 conditions_result = check_station_conditions(station_data, station_config, preferences, winter)
+                station_detail['conditions_result'] = {
+                    'overall_met': conditions_result['conditions_met'],
+                    'checks': conditions_result['checks']
+                }
                 
                 if not conditions_result["conditions_met"]:
                     logger.info(f"Conditions not met for user {user_id}, station {station_id}")
+                    run_metrics['station_details'].append(station_detail)
                     continue
                 
                 run_metrics['conditions_met_count'] += 1
@@ -437,6 +474,7 @@ def lambda_handler(event, context):
                 except Exception as e:
                     run_metrics['database_errors'] += 1
                     logger.warning(f"Database error getting last notification: {e}")
+                    run_metrics['station_details'].append(station_detail)
                     continue
                 
                 time_since_last = datetime.datetime.now(pytz.UTC) - last_notification_time
@@ -444,7 +482,10 @@ def lambda_handler(event, context):
                 
                 if time_since_last < datetime.timedelta(hours=cooldown_hours):
                     run_metrics['cooldown_blocks'] += 1
+                    station_detail['cooldown_active'] = True
+                    station_detail['cooldown_remaining_hours'] = round((datetime.timedelta(hours=cooldown_hours) - time_since_last).total_seconds() / 3600, 1)
                     logger.info(f"Skipping user {user_id}, station {station_id} - cooldown period not met")
+                    run_metrics['station_details'].append(station_detail)
                     continue
                 
                 # Generate and send personalized message
@@ -453,6 +494,8 @@ def lambda_handler(event, context):
                 success = send_telegram_message(chat_id, message, telegram_token)
                 
                 if success:
+                    station_detail['notification_sent'] = True
+                    
                     # Log the notification
                     try:
                         station_data_dict = station_data.tail(preferences.get("message_rows", 6)).to_dict('records')
@@ -464,11 +507,16 @@ def lambda_handler(event, context):
                     run_metrics['notifications_sent'] += 1
                     logger.info(f"Notification sent to user {user_id} for station {station_id}")
                     
+                    run_metrics['station_details'].append(station_detail)
+                    
                     # Only send one notification per user per run (highest priority station wins)
                     break
                 else:
                     run_metrics['notification_failures'] += 1
+                    station_detail['notification_error'] = "Failed to send Telegram message"
                     logger.error(f"Failed to send notification to user {user_id} for station {station_id}")
+                
+                run_metrics['station_details'].append(station_detail)
         
         # Calculate final metrics
         run_metrics['runtime_seconds'] = round(time.time() - start_time, 2)
