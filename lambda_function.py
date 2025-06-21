@@ -3,6 +3,7 @@ import os
 import requests
 import datetime
 import pytz
+import time
 from typing import List, Dict, Any, Optional
 from supabase import create_client, Client
 import logging
@@ -15,7 +16,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 # Supabase client
@@ -324,31 +328,64 @@ def log_notification(user_id: str, station_id: str, message_content: str, condit
         logger.error(f"Failed to log notification for user {user_id}, station {station_id}: {e}")
         return False
 
+def log_run_metrics(metrics: Dict[str, Any]) -> bool:
+    """Log run metrics to Supabase for monitoring"""
+    try:
+        supabase.table("run_metrics").insert(metrics).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Failed to log run metrics: {e}")
+        return False
+
 def lambda_handler(event, context):
     """Main Lambda function handler for multi-station notifications"""
+    start_time = time.time()
+    run_metrics = {
+        'run_id': f"run_{int(time.time())}",
+        'start_time': datetime.datetime.now(pytz.UTC).isoformat(),
+        'users_found': 0,
+        'users_checked': 0,
+        'stations_total': 0,
+        'stations_checked': 0,
+        'stations_with_data': 0,
+        'stations_disabled': 0,
+        'conditions_met_count': 0,
+        'cooldown_blocks': 0,
+        'notifications_sent': 0,
+        'notification_failures': 0,
+        'api_errors': 0,
+        'database_errors': 0,
+        'winter_mode': False,
+        'runtime_seconds': 0,
+        'success': True,
+        'error_message': None
+    }
+    
     try:
         logger.info("Starting SoarBot multi-station check...")
         
         # Check if it's winter
         winter = check_winter()
+        run_metrics['winter_mode'] = winter
         logger.info(f"Winter mode: {winter}")
         
         # Get all active users with their configurations
         users = get_active_users_with_configs()
+        run_metrics['users_found'] = len(users)
         
         if not users:
             logger.info("No active users found")
+            run_metrics['runtime_seconds'] = round(time.time() - start_time, 2)
+            log_run_metrics(run_metrics)
             return {
                 'statusCode': 200,
                 'body': json.dumps({'message': 'No active users found'})
             }
         
         logger.info(f"Found {len(users)} active users")
+        run_metrics['stations_total'] = sum(len(user['stations']) for user in users)
         
-        notifications_sent = 0
-        total_stations_checked = 0
         telegram_token = os.getenv("TELEGRAM_BOT_TOKEN")
-        
         if not telegram_token:
             raise Exception("TELEGRAM_BOT_TOKEN environment variable not set")
         
@@ -356,23 +393,33 @@ def lambda_handler(event, context):
             user_id = user_data["user_id"]
             chat_id = user_data["telegram_chat_id"]
             preferences = user_data["preferences"]
+            run_metrics['users_checked'] += 1
             
             logger.info(f"Checking conditions for user {user_id} ({len(user_data['stations'])} stations)")
             
             # Check each station for this user (in priority order)
             for station_config in user_data["stations"]:
                 if not station_config["station_enabled"]:
+                    run_metrics['stations_disabled'] += 1
                     logger.info(f"Skipping disabled station {station_config['station_id']} for user {user_id}")
                     continue
                 
-                total_stations_checked += 1
+                run_metrics['stations_checked'] += 1
                 station_id = station_config["station_id"]
                 
                 # Get weather data for this station
-                station_data = get_station_weather_data(station_config)
+                try:
+                    station_data = get_station_weather_data(station_config)
+                except Exception as e:
+                    run_metrics['api_errors'] += 1
+                    logger.warning(f"API error for station {station_id}: {e}")
+                    continue
+                
                 if station_data is None or len(station_data) == 0:
                     logger.warning(f"No weather data available for station {station_id}")
                     continue
+                
+                run_metrics['stations_with_data'] += 1
                 
                 # Check conditions for this station
                 conditions_result = check_station_conditions(station_data, station_config, preferences, winter)
@@ -381,13 +428,22 @@ def lambda_handler(event, context):
                     logger.info(f"Conditions not met for user {user_id}, station {station_id}")
                     continue
                 
+                run_metrics['conditions_met_count'] += 1
+                
                 # Check cooldown period for this specific station  
                 station_uuid = station_config.get("station_uuid") or station_config.get("id") or station_id
-                last_notification_time = get_last_notification_time(user_id, station_uuid)
+                try:
+                    last_notification_time = get_last_notification_time(user_id, station_uuid)
+                except Exception as e:
+                    run_metrics['database_errors'] += 1
+                    logger.warning(f"Database error getting last notification: {e}")
+                    continue
+                
                 time_since_last = datetime.datetime.now(pytz.UTC) - last_notification_time
                 cooldown_hours = preferences.get("notification_cooldown_hours", 4)
                 
                 if time_since_last < datetime.timedelta(hours=cooldown_hours):
+                    run_metrics['cooldown_blocks'] += 1
                     logger.info(f"Skipping user {user_id}, station {station_id} - cooldown period not met")
                     continue
                 
@@ -398,33 +454,55 @@ def lambda_handler(event, context):
                 
                 if success:
                     # Log the notification
-                    station_data_dict = station_data.tail(preferences.get("message_rows", 6)).to_dict('records')
-                    log_notification(user_id, station_uuid, message, conditions_result, station_data_dict)
-                    notifications_sent += 1
+                    try:
+                        station_data_dict = station_data.tail(preferences.get("message_rows", 6)).to_dict('records')
+                        log_notification(user_id, station_uuid, message, conditions_result, station_data_dict)
+                    except Exception as e:
+                        run_metrics['database_errors'] += 1
+                        logger.warning(f"Failed to log notification: {e}")
+                    
+                    run_metrics['notifications_sent'] += 1
                     logger.info(f"Notification sent to user {user_id} for station {station_id}")
                     
                     # Only send one notification per user per run (highest priority station wins)
                     break
                 else:
+                    run_metrics['notification_failures'] += 1
                     logger.error(f"Failed to send notification to user {user_id} for station {station_id}")
         
-        result_message = f'Multi-station Lambda executed successfully. {notifications_sent} notifications sent from {total_stations_checked} station checks across {len(users)} users.'
+        # Calculate final metrics
+        run_metrics['runtime_seconds'] = round(time.time() - start_time, 2)
+        run_metrics['end_time'] = datetime.datetime.now(pytz.UTC).isoformat()
+        
+        result_message = f'Multi-station Lambda executed successfully. {run_metrics["notifications_sent"]} notifications sent from {run_metrics["stations_checked"]} station checks across {run_metrics["users_checked"]} users in {run_metrics["runtime_seconds"]}s.'
         logger.info(result_message)
+        
+        # Log metrics to Supabase
+        log_run_metrics(run_metrics)
         
         return {
             'statusCode': 200,
             'body': json.dumps({
                 'message': result_message,
-                'notifications_sent': notifications_sent,
-                'total_users_checked': len(users),
-                'total_stations_checked': total_stations_checked,
+                'notifications_sent': run_metrics['notifications_sent'],
+                'total_users_checked': run_metrics['users_checked'],
+                'total_stations_checked': run_metrics['stations_checked'],
+                'runtime_seconds': run_metrics['runtime_seconds'],
                 'winter_mode': winter
             })
         }
         
     except Exception as e:
+        run_metrics['runtime_seconds'] = round(time.time() - start_time, 2)
+        run_metrics['end_time'] = datetime.datetime.now(pytz.UTC).isoformat()
+        run_metrics['success'] = False
+        run_metrics['error_message'] = str(e)
+        
         error_message = f"Lambda execution failed: {e}"
         logger.error(error_message)
+        
+        # Log failed run metrics
+        log_run_metrics(run_metrics)
         
         # Try to send error notification to admin
         admin_chat_id = os.getenv("ADMIN_TELEGRAM_CHAT_ID")
