@@ -146,3 +146,82 @@ telegram_token=your-bot-token
 - Lambda function includes comprehensive error handling and admin notifications
 - Station data supports multiple API providers (currently Synoptic only)
 - Legacy e-ink display components preserved for backward compatibility
+
+## Dashboard Development Plan
+
+### SoarBot Run Analytics Dashboard
+
+**Objective**: Create a simple frontend-only dashboard to monitor SoarBot performance and diagnose notification failures.
+
+#### Technical Stack
+- **Frontend**: React + Vite (initialize with `npm create vite@latest dashboard --template react`)
+- **Database**: Direct Supabase queries (no backend needed)
+- **Styling**: Tailwind CSS for rapid development
+- **Charts**: Chart.js for weather data visualization
+- **Client**: Supabase JS client for direct database access
+
+#### Dashboard Structure
+
+**1. Run Summary Cards** (top section)
+- Total runs today/week from `run_metrics` table
+- Success rate percentage calculation
+- Average runtime trends
+- Notifications sent count
+
+**2. Station Failure Analysis** (main section)
+- Date range picker for filtering runs
+- Expandable table showing station checks with:
+  - Station name, user ID, timestamp
+  - Status indicators (success/failed/cooldown/disabled)
+  - Failed conditions as colored badges
+- Row expansion reveals:
+  - Actual weather values vs configured thresholds
+  - Detailed condition breakdown from `station_details` JSON
+  - Raw weather data (wind speed, direction, gusts, precipitation)
+
+**3. Weather Data Visualization** (bottom section)
+- Simple line charts showing recent weather trends
+- Wind speed, direction, gusts for failed stations
+- Threshold overlay bands to show how close conditions were to passing
+- Helps identify near-miss scenarios
+
+#### Key Features
+- **Read-only access** - No authentication required
+- **Real-time filtering** by date range, station, user
+- **Color-coded status** - Red (failed), Yellow (cooldown), Green (success), Gray (disabled)
+- **Responsive design** for mobile monitoring
+- **Direct Supabase queries** from frontend using environment variables
+
+#### Development Commands
+```bash
+# Initialize Vite React app
+npm create vite@latest dashboard --template react
+
+# Install dependencies
+cd dashboard
+npm install @supabase/supabase-js chart.js react-chartjs-2 tailwindcss
+
+# Development server
+npm run dev
+```
+
+#### Key Supabase Queries
+1. **Run Overview**: `SELECT * FROM run_metrics WHERE start_time >= ? ORDER BY start_time DESC`
+2. **Station Analysis**: Extract and filter `station_details` JSON for failure analysis
+3. **Weather Trends**: Parse weather data from `station_details` for visualization
+4. **Failure Patterns**: Aggregate condition failures by type and frequency
+
+#### File Structure
+```
+dashboard/
+├── src/
+│   ├── components/
+│   │   ├── RunSummary.jsx
+│   │   ├── StationTable.jsx
+│   │   └── WeatherCharts.jsx
+│   ├── utils/
+│   │   └── supabase.js
+│   └── App.jsx
+├── tailwind.config.js
+└── package.json
+```

@@ -2,10 +2,7 @@ name: SoarBot Multi-Station Notifications
 
 on:
   schedule:
-    # Run every 5 minutes during daylight hours (6 AM to 8 PM Mountain Time)
-    # Adjusted for UTC: 13:00-02:00 (accounting for daylight saving time variations)
-    - cron: '*/5 13-23 * * *'  # 6 AM - 5 PM Mountain Time  
-    - cron: '*/5 0-2 * * *'    # 5 PM - 8 PM Mountain Time
+    - cron: '*/5 * * * *'  # Every 5 minutes, but check time in job
   
   workflow_dispatch:  # Allow manual triggering
 
