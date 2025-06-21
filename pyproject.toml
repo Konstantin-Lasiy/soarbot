@@ -11,6 +11,7 @@ dependencies = [
     "pytz>=2023.3",
     "supabase>=2.0.2",
     "python-dotenv>=1.0.0",
+    "ruff>=0.11.13",
 ]
 requires-python = ">=3.9"
 

@@ -2030,6 +2030,7 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "pytz" },
     { name = "requests" },
+    { name = "ruff" },
     { name = "supabase" },
 ]
 
@@ -2049,6 +2050,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "pytz", specifier = ">=2023.3" },
     { name = "requests", specifier = ">=2.31.0" },
+    { name = "ruff", specifier = ">=0.11.13" },
     { name = "supabase", specifier = ">=2.0.2" },
 ]
 
