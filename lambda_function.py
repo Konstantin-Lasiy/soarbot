@@ -28,6 +28,40 @@ supabase: Client = create_client(
     os.getenv("SUPABASE_SERVICE_ROLE_KEY")  # Use service role key for server-side operations
 )
 
+# Cache for station code -> UUID resolution
+STATION_CODE_UUID_CACHE: Dict[str, str] = {}
+
+def resolve_station_uuid(station_identifier: Optional[str]) -> Optional[str]:
+    """Return a UUID string for a station identifier.
+    - If `station_identifier` is already a valid UUID, return it unchanged.
+    - Else, treat it as a human-readable station code (e.g., 'FPS') and look up `wind_stations.id`.
+    - Return None if it cannot be resolved (allowed by FK which does not require NOT NULL).
+    """
+    if not station_identifier:
+        return None
+    # Fast-path: is it a UUID already?
+    try:
+        import uuid  # local import to avoid global dependency if unused
+        _ = uuid.UUID(str(station_identifier))
+        return str(station_identifier)
+    except Exception:
+        pass
+    # Cached lookup for station code
+    cached = STATION_CODE_UUID_CACHE.get(station_identifier)
+    if cached:
+        return cached
+    try:
+        result = supabase.table("wind_stations").select("id").eq("station_id", station_identifier).limit(1).execute()
+        if result.data:
+            station_uuid = result.data[0]["id"]
+            STATION_CODE_UUID_CACHE[station_identifier] = station_uuid
+            return station_uuid
+        logger.warning(f"Could not resolve station code '{station_identifier}' to UUID; storing NULL in notification_history.station_id")
+        return None
+    except Exception as e:
+        logger.error(f"Failed to resolve station UUID for identifier '{station_identifier}': {e}")
+        return None
+
 def send_telegram_message(chat_id: str, text: str, telegram_token: str, parse_mode: str = "HTML") -> bool:
     """Send a message to a Telegram chat"""
     api_url = f'https://api.telegram.org/bot{telegram_token}/sendMessage'
@@ -238,9 +272,13 @@ def check_station_conditions(station_data, station_config: Dict[str, Any], user_
     
     return conditions_result
 
-def get_last_notification_time(user_id: str, station_uuid: str) -> datetime.datetime:
+def get_last_notification_time(user_id: str, station_uuid_or_code: str) -> datetime.datetime:
     """Get the timestamp of the last notification sent to a user for a specific station"""
     try:
+        station_uuid = resolve_station_uuid(station_uuid_or_code)
+        if not station_uuid:
+            # No resolvable UUID → behave as if never notified
+            return datetime.datetime.now(pytz.UTC) - datetime.timedelta(days=365)
         result = supabase.table("notification_history").select("sent_at").eq("user_id", user_id).eq("station_id", station_uuid).order("sent_at", desc=True).limit(1).execute()
         
         if result.data:
@@ -291,7 +329,7 @@ def generate_personalized_message(user_data: Dict[str, Any], station_config: Dic
     
     return full_message
 
-def log_notification(user_id: str, station_id: str, message_content: str, conditions_result: Dict[str, Any], station_data_dict: Dict[str, Any]) -> bool:
+def log_notification(user_id: str, station_id: Optional[str], message_content: str, conditions_result: Dict[str, Any], station_data_dict: Dict[str, Any]) -> bool:
     """Log a sent notification to the database"""
     try:
         
@@ -311,16 +349,19 @@ def log_notification(user_id: str, station_id: str, message_content: str, condit
         clean_conditions = make_serializable(conditions_result)
         clean_station_data = make_serializable(station_data_dict)
         
+        station_uuid = resolve_station_uuid(station_id) if station_id else None
         notification_data = {
             "user_id": user_id,
-            "station_id": station_id,
+            # Use UUID if resolvable; else store NULL to avoid FK and uuid syntax errors
+            "station_id": station_uuid,
             "message_content": message_content,
             "conditions_met": clean_conditions,
             "station_data": clean_station_data,
             "notification_type": "conditions_met"
         }
         
-        supabase.table("notification_history").insert(notification_data).execute()
+        response = supabase.table("notification_history").insert(notification_data).execute()
+        logger.info("notification_history insert response: %s", getattr(response, "data", None))
         return True
     except Exception as e:
         logger.error(f"Failed to log notification for user {user_id}, station {station_id}: {e}")
