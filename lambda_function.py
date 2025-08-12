@@ -17,11 +17,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+log_dir = "/home/myuser/repos/personal/soarbot/logs"
+os.makedirs(log_dir, exist_ok=True)
+
+file_handler = RotatingFileHandler(
+    filename=f"{log_dir}/soarbot.log",
+    maxBytes=2 * 1024 * 1024,  # 5 MB
+    backupCount=7              # keep 7 files
 )
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
 logger = logging.getLogger(__name__)
+logger.setLevel(os.getenv("LOG_LEVEL", "INFO"))
+logger.addHandler(file_handler)
 
 # Supabase client
 supabase: Client = create_client(
