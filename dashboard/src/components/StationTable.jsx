@@ -7,7 +7,7 @@ function StationTable({ runData }) {
   const stationDetails = runData.flatMap(run => 
     (run.station_details || []).map(station => ({
       ...station,
-      run_id: run.run_id,
+      run_id: run.id,
       start_time: run.start_time,
       winter_mode: run.winter_mode
     }))
