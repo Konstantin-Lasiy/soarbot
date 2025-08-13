@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Optional
 from supabase import create_client, Client
 import logging
 from logging.handlers import RotatingFileHandler
-
+from utils.serialization import make_serializable
 # Import existing weather utilities
 from utils.weather_utils import get_station_data, check_winter, format_message
 
@@ -33,10 +33,8 @@ logger.addHandler(file_handler)
 
 # Supabase client
 supabase: Client = create_client(
-    os.getenv("SUPABASE_URL"),
-    os.getenv(
-        "SUPABASE_SERVICE_ROLE_KEY"
-    ),  # Use service role key for server-side operations
+    os.getenv("SUPABASE_URL") or "",
+    os.getenv("SUPABASE_SERVICE_ROLE_KEY") or "",
 )
 
 # Cache for station code -> UUID resolution
@@ -410,18 +408,6 @@ def log_notification(
     """Log a sent notification to the database"""
     try:
 
-        def make_serializable(obj):
-            """Convert numpy/pandas types to JSON serializable types"""
-            if hasattr(obj, "item"):  # numpy scalars
-                return obj.item()
-            elif hasattr(obj, "tolist"):  # numpy arrays
-                return obj.tolist()
-            elif isinstance(obj, dict):
-                return {k: make_serializable(v) for k, v in obj.items()}
-            elif isinstance(obj, list):
-                return [make_serializable(v) for v in obj]
-            else:
-                return obj
 
         clean_conditions = make_serializable(conditions_result)
         clean_station_data = make_serializable(station_data_dict)
@@ -454,20 +440,6 @@ def log_notification(
 def log_run_metrics(metrics: Dict[str, Any]) -> bool:
     """Log run metrics to Supabase for monitoring"""
     try:
-
-        def make_serializable(obj):
-            """Convert numpy/pandas types to JSON serializable types"""
-            if hasattr(obj, "item"):  # numpy scalars
-                return obj.item()
-            elif hasattr(obj, "tolist"):  # numpy arrays
-                return obj.tolist()
-            elif isinstance(obj, dict):
-                return {k: make_serializable(v) for k, v in obj.items()}
-            elif isinstance(obj, list):
-                return [make_serializable(v) for v in obj]
-            else:
-                return obj
-
         clean_metrics = make_serializable(metrics)
         supabase.table("run_metrics").insert(clean_metrics).execute()
         return True
@@ -480,7 +452,6 @@ def lambda_handler(event, context):
     """Main Lambda function handler for multi-station notifications"""
     start_time = time.time()
     run_metrics = {
-        "run_id": f"run_{int(time.time())}",
         "start_time": datetime.datetime.now(pytz.UTC).isoformat(),
         "users_found": 0,
         "users_checked": 0,
@@ -669,9 +640,13 @@ def lambda_handler(event, context):
 
                     # Log the notification
                     try:
-                        station_data_dict = station_data.tail(
+                        latest_data = station_data.tail(
                             preferences.get("message_rows", 6)
-                        ).to_dict("records")
+                        )
+                        station_data_json = latest_data.to_json(
+                            orient="records", date_format="iso"
+                        )
+                        station_data_dict = json.loads(station_data_json)
                         log_notification(
                             user_id,
                             station_uuid,
